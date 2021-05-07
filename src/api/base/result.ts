@@ -1,3 +1,5 @@
+'use strict';
+
 export interface BasicItem {
   api_detail_url?: string;
   id?: number;

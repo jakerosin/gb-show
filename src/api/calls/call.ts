@@ -1,3 +1,5 @@
+'use strict';
+
 import { get as httpieGet } from 'httpie';
 import { encode } from 'querystring';
 

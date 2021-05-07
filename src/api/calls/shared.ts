@@ -1,3 +1,5 @@
+'use strict';
+
 import { ApiConfig } from '../base/config';
 import { ItemFilter } from '../base/filter';
 

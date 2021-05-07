@@ -1,3 +1,5 @@
+'use strict';
+
 // calls
 import * as video from './calls/video';
 import * as videoShow from './calls/video-show';

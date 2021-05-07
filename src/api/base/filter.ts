@@ -1,3 +1,5 @@
+'use strict';
+
 import { encode } from 'querystring';
 
 import * as date from './date';

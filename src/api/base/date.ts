@@ -1,3 +1,5 @@
+'use strict';
+
 export function toString(date: Date): string {
   return date.toISOString()
     .replace(/T/, ' ')
