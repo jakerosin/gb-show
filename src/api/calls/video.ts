@@ -61,6 +61,15 @@ export async function list(filter: ListFilter = {}, config: ApiConfig = {}): Pro
   return data;
 }
 
+export async function all(filter: ListFilter = {}, config: ApiConfig = {}): Promise<ListResult<Video>> {
+  const path = 'https://www.giantbomb.com/api/videos/';
+  const data = await Call.autopage<Video>('api.video.list', path, filter, config);
+
+  if (data.results) data.results = data.results.map(format);
+
+  return data;
+}
+
 export async function search(query: string, filter: PageFilter = {}, config: ApiConfig = {}): Promise<ListResult<Video>> {
   const data = await Call.search<Video>('api.video.search', query, 'video', filter, config);
 

@@ -42,3 +42,12 @@ export async function list(filter: ListFilter = {}, config: ApiConfig = {}): Pro
 
   return data;
 }
+
+export async function all(filter: ListFilter = {}, config: ApiConfig = {}): Promise<ListResult<VideoShow>> {
+  const path = 'https://www.giantbomb.com/api/video_shows/';
+  const data = await Call.autopage<VideoShow>('api.videoShow.list', path, filter, config);
+
+  if (data.results) data.results = data.results.map(format);
+
+  return data;
+}

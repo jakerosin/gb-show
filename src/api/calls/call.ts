@@ -97,6 +97,38 @@ export async function list<Type>(tag: string, path: string, filter: ListFilter =
   return data as ListResult<Type>;
 }
 
+export async function autopage<Type>(tag: string, path: string, filter: ListFilter = {}, config: ApiConfig = {}): Promise<ListResult<Type>> {
+  let offset = filter.offset || 0;
+  let total = Infinity;
+  let ok = true;
+
+  let output: ListResult<Type>|void = null;
+
+  while (ok && offset < total) {
+    const data = await list<Type>(tag, path, { ...filter, offset }, config);
+    if (!output) {
+      output = data;
+      total = data.number_of_total_results;
+    } else if (output.results && data.results) {
+      output.results = output.results.concat(data.results);
+    }
+
+    if (data.results) {
+      offset +=  data.results.length;
+    } else {
+      ok = false;
+    }
+  }
+
+  if (!output) {
+    throw new Error(`${tag}: no pagination framework`);
+  }
+
+  output.number_of_page_results = output.results ? output.results.length : 0
+
+  return output;
+}
+
 export async function search<Type>(tag: string, query: string, resources: string|string[], filter: PageFilter = {}, config: ApiConfig = {}): Promise<ListResult<Type>> {
   const path = 'https://www.giantbomb.com/api/search/';
   const url = toURL(tag, path, { ...filter, resources:[].concat(resources), query } as SearchFilter, config);
