@@ -1,6 +1,6 @@
 import { ApiConfig } from '../base/config';
 import * as DateUtils from '../base/date';
-import { ItemFilter, ListFilter } from '../base/filter';
+import { ItemFilter, ListFilter, PageFilter } from '../base/filter';
 import { BasicItem, ItemResult, ListResult, ImageResult } from '../base/result';
 
 import * as Call from './call';
@@ -55,6 +55,14 @@ export async function get(guid: string, filter: ItemFilter = {}, config: ApiConf
 export async function list(filter: ListFilter = {}, config: ApiConfig = {}): Promise<ListResult<Video>> {
   const path = 'https://www.giantbomb.com/api/videos/';
   const data = await Call.list<Video>('api.video.list', path, filter, config);
+
+  if (data.results) data.results = data.results.map(format);
+
+  return data;
+}
+
+export async function search(query: string, filter: PageFilter = {}, config: ApiConfig = {}): Promise<ListResult<Video>> {
+  const data = await Call.search<Video>('api.video.search', query, 'video', filter, config);
 
   if (data.results) data.results = data.results.map(format);
 

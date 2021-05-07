@@ -32,10 +32,21 @@ export interface ListFilter extends ItemFilter {
   filter?: ListFieldFilter|ListFieldFilter[]
 }
 
+type SearchFilterResources = 'game'|'franchise'|'character'|'concept'|'object'
+  |'location'|'person'|'company'|'video';
+
 export interface PageFilter extends ItemFilter {
   limit?: number;
   page?: number;
-  filter?: ListFieldFilter|ListFieldFilter[]
+  filter?: ListFieldFilter|ListFieldFilter[];
+}
+
+export interface SearchFilter extends PageFilter {
+  limit?: number;
+  page?: number;
+  filter?: ListFieldFilter|ListFieldFilter[];
+  query?: string;
+  resources?: SearchFilterResources[]
 }
 
 export interface ApiParams {
