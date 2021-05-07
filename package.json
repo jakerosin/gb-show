@@ -1,0 +1,17 @@
+{
+  "name": "gb-tool",
+  "version": "1.0.0",
+  "description": "Tool for batch-downloads of Giant Bomb videos",
+  "main": "index.ts",
+  "scripts": {
+    "do": "source .env && ts-node ./index.ts",
+    "test": "tsc --noEmit && NODE_ENV=test ts-mocha './src/**/test/*'"
+  },
+  "author": "jake",
+  "license": "MIT",
+  "dependencies": {
+    "gb-dl": "^2.7.0",
+    "httpie": "^1.1.2",
+    "querystring": "^0.2.1"
+  }
+}
