@@ -49,15 +49,6 @@ export interface SearchFilter extends PageFilter {
   resources?: SearchFilterResources[]
 }
 
-export interface ApiParams {
-  format?: 'xml'|'json'|'jsonp';
-  fields?: string;
-  limit?: number;
-  offset?: number;
-  sort?: string;
-  filter?: string;
-}
-
 // TODO this but with better typing
 export function toParams(filter: any = {}): any {
   const params: any = { ...filter };

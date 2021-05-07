@@ -73,7 +73,7 @@ function validateResponseStatus(url: URL, data: any): void {
   }
 }
 
-export async function get<Type>(tag: string, path: string, filter: ItemFilter = {}, config: ApiConfig = {}): Promise<ItemResult<Type>> {
+export async function get<T>(tag: string, path: string, filter: ItemFilter, config: ApiConfig): Promise<ItemResult<T>> {
   const url = toURL(tag, path, filter, config);
 
   const { data } = await rateLimitGet(url, config);
@@ -85,38 +85,41 @@ export async function get<Type>(tag: string, path: string, filter: ItemFilter = 
     throw new Error(`${tag}:  GET ${url.safe} provided array results ${JSON.stringify(data)}`);
   }
 
-  return data as ItemResult<Type>;
+  return data as ItemResult<T>;
 }
 
-export async function list<Type>(tag: string, path: string, filter: ListFilter = {}, config: ApiConfig = {}): Promise<ListResult<Type>> {
+export async function list<T>(tag: string, path: string, filter: ListFilter, config: ApiConfig): Promise<ListResult<T>> {
   const url = toURL(tag, path, filter, config);
 
   const { data } = await rateLimitGet(url, config);
   validateResponseStatus(url, data);
 
-  return data as ListResult<Type>;
+  return data as ListResult<T>;
 }
 
-export async function autopage<Type>(tag: string, path: string, filter: ListFilter = {}, config: ApiConfig = {}): Promise<ListResult<Type>> {
+export async function autopageList<T>(tag: string, path: string, filter: ListFilter, config: ApiConfig, until?: (T) => boolean): Promise<ListResult<T>> {
   let offset = filter.offset || 0;
   let total = Infinity;
-  let ok = true;
+  let stop = false;
 
-  let output: ListResult<Type>|void = null;
+  let results: T[] = [];
+  let output: ListResult<T>|void = null;
 
-  while (ok && offset < total) {
-    const data = await list<Type>(tag, path, { ...filter, offset }, config);
+  while (!stop && offset < total) {
+    const data = await list<T>(tag, path, { ...filter, offset }, config);
     if (!output) {
-      output = data;
+      output = { ...data, results }
       total = data.number_of_total_results;
-    } else if (output.results && data.results) {
-      output.results = output.results.concat(data.results);
     }
 
-    if (data.results) {
-      offset +=  data.results.length;
+    if (data.results && data.results.length) {
+      offset += data.results.length;
+      stop = data.results.some(item => {
+        results.push(item);
+        return until && until(item);
+      });
     } else {
-      ok = false;
+      stop = true;
     }
   }
 
@@ -124,17 +127,48 @@ export async function autopage<Type>(tag: string, path: string, filter: ListFilt
     throw new Error(`${tag}: no pagination framework`);
   }
 
-  output.number_of_page_results = output.results ? output.results.length : 0
-
   return output;
 }
 
-export async function search<Type>(tag: string, query: string, resources: string|string[], filter: PageFilter = {}, config: ApiConfig = {}): Promise<ListResult<Type>> {
+export async function search<T>(tag: string, query: string, resources: string|string[], filter: PageFilter, config: ApiConfig): Promise<ListResult<T>> {
   const path = 'https://www.giantbomb.com/api/search/';
   const url = toURL(tag, path, { ...filter, resources:[].concat(resources), query } as SearchFilter, config);
 
   const { data } = await rateLimitGet(url, config);
   validateResponseStatus(url, data);
 
-  return data as ListResult<Type>;
+  return data as ListResult<T>;
+}
+
+export async function autopageSearch<T>(tag: string, query: string, resources: string|string[], filter: PageFilter, config: ApiConfig, until?: (T) => boolean): Promise<ListResult<T>> {
+  let page = filter.page || 0;
+  let total = Infinity;
+  let stop = false;
+
+  let results: T[] = [];
+  let output: ListResult<T>|void = null;
+
+  while (!stop) {
+    const data = await search<T>(tag, query, resources, { ...filter, page }, config);
+    page += 1;
+
+    if (!output) {
+      output = { ...data, results }
+    }
+
+    if (data.results && data.results.length) {
+      stop = data.results.some(item => {
+        results.push(item);
+        return until && until(item);
+      });
+    } else {
+      stop = true;
+    }
+  }
+
+  if (!output) {
+    throw new Error(`${tag}: no pagination framework`);
+  }
+
+  return output;
 }

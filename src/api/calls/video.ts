@@ -28,7 +28,7 @@ export interface Video extends BasicItem {
   image?: ImageResult|void;
   length_seconds?: number|void;
   name?: string|void;
-  publish_date?: Date|void;
+  publish_date?: string|void;
   site_detail_url?: string|void;
   url?: string|void;
   user?: string|void;
@@ -41,39 +41,54 @@ export interface Video extends BasicItem {
   premium?: boolean|void;
 }
 
-export function format(item: any): Video {
-  return (DateUtils.fromStringFields(item, 'publish_date')) as Video;
-}
-
 export async function get(guid: string, filter: ItemFilter = {}, config: ApiConfig = {}): Promise<Video> {
   const path = `https://www.giantbomb.com/api/video/${guid}/`;
   const data = await Call.get<Video>('api.video.get', path, filter, config);
 
-  return format(data.results);
+  return data.results;
 }
 
 export async function list(filter: ListFilter = {}, config: ApiConfig = {}): Promise<ListResult<Video>> {
   const path = 'https://www.giantbomb.com/api/videos/';
   const data = await Call.list<Video>('api.video.list', path, filter, config);
 
-  if (data.results) data.results = data.results.map(format);
-
   return data;
 }
 
 export async function all(filter: ListFilter = {}, config: ApiConfig = {}): Promise<ListResult<Video>> {
   const path = 'https://www.giantbomb.com/api/videos/';
-  const data = await Call.autopage<Video>('api.video.list', path, filter, config);
-
-  if (data.results) data.results = data.results.map(format);
+  const data = await Call.autopageList<Video>('api.video.all', path, filter, config);
 
   return data;
+}
+
+export async function find(predicate: (Video) => boolean, filter: ListFilter = {}, config: ApiConfig = {}): Promise<Video|void> {
+  const path = 'https://www.giantbomb.com/api/videos/';
+  const data = await Call.autopageList<Video>('api.video.find', path, filter, config, predicate);
+
+  if (data.results && data.results.length) {
+    const candidate = data.results[data.results.length - 1];
+    if (predicate(candidate)) return candidate;
+  }
 }
 
 export async function search(query: string, filter: PageFilter = {}, config: ApiConfig = {}): Promise<ListResult<Video>> {
   const data = await Call.search<Video>('api.video.search', query, 'video', filter, config);
 
-  if (data.results) data.results = data.results.map(format);
+  return data;
+}
+
+export async function searchAll(query: string, filter: PageFilter = {}, config: ApiConfig = {}): Promise<ListResult<Video>> {
+  const data = await Call.autopageSearch<Video>('api.video.searchAll', query, 'video', filter, config);
 
   return data;
+}
+
+export async function searchFor(query: string, predicate: (Video) => boolean, filter: PageFilter = {}, config: ApiConfig = {}): Promise<Video|void> {
+  const data = await Call.autopageSearch<Video>('api.video.searchFor', query, 'video', filter, config, predicate);
+
+  if (data.results && data.results.length) {
+    const candidate = data.results[data.results.length - 1];
+    if (predicate(candidate)) return candidate;
+  }
 }

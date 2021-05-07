@@ -14,16 +14,16 @@ interface BasicResult {
   version: string;
 }
 
-export interface ItemResult<Type> extends BasicResult {
+export interface ItemResult<T> extends BasicResult {
   limit: 1;
   offset: 0;
   number_of_page_results: 1;
   number_of_total_results: 1;
-  results: Type;
+  results: T;
 }
 
-export interface ListResult<Type> extends BasicResult {
-  results: Type[]|void;
+export interface ListResult<T> extends BasicResult {
+  results: T[]|void;
 }
 
 export interface ImageResult {
