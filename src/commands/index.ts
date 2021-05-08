@@ -1,9 +1,15 @@
 'use strict';
 
 // internal
-import { Context, Command, ERROR } from './utils/context';
+import { ERROR } from './utils/context';
 
-const cmds: Command[] = [];
+// command processors
+import * as shows from './processors/shows';
+
+// types
+import { Context, Command } from './utils/context';
+
+const cmds: Command[] = [shows];
 
 const process = async(command:string, argv: string[], context: Context): Promise<number> => {
   const { logger } = context;
@@ -31,7 +37,7 @@ const process = async(command:string, argv: string[], context: Context): Promise
 
 export default {
   // processors
-  // TODO
+  shows,
 
   // special commands
   // TODO

@@ -2,7 +2,7 @@
 
 import Parser from './commands/utils/parser';
 import { ERROR } from './commands/utils/context';
-import Logger from './commands/utils/logger';
+import Logger from './utils/logger';
 
 import api from './api';
 import commands from './commands';
@@ -24,12 +24,8 @@ export default async function run(dir): Promise<number> {
     ],
     options: [
       {
-        name: 'verbose', alias: 'v', type: Boolean,
-        description: 'Print extra log output for more verbose operation'
-      },
-      {
-        name: 'silent', alias: 's', type: Boolean,
-        description: 'Silence log output'
+        name: 'log-level', alias: 'l', type: String, defaultValue: 'info',
+        description: 'Severity level for logging: one of [off, silent, fatal, error, warn, info, debug, trace, all]'
       },
       {
         name: 'api-key', alias: 'k', type: String,
@@ -55,9 +51,7 @@ export default async function run(dir): Promise<number> {
   const argv = mainOptions._unknown || [];
 
   // parse and normalize options
-  const { silent, legacy } = mainOptions;
-  const verbose = !silent && mainOptions.verbose;
-  const logger = new Logger({ silent, verbose });
+  const logger = new Logger({ level:mainOptions['log-level'] });
 
   const command = mainOptions.command.toLowerCase();
 
@@ -73,6 +67,7 @@ export default async function run(dir): Promise<number> {
 
   // prepare API
   api.setApiKey(context.api_key);
+  api.setLogger(logger);
 
   return await commands.process(command, argv, context);
 }

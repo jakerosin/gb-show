@@ -1,12 +1,13 @@
 'use strict';
 
-import Logger from  './logger';
+import Logger from  '../../utils/logger';
 import Parser  from './parser';
 
 export const ERROR = {
   NONE: 0,
   UNKNOWN_COMMAND: 1,
-  NO_TOKEN: 2
+  NO_TOKEN: 2,
+  WHAT: 1000
 }
 
 export const DEFAULT = {

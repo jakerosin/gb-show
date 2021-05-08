@@ -50,16 +50,24 @@ function nextDelay(config: ApiConfig): number {
 }
 
 async function rateLimitGet(url: URL, config: ApiConfig): Promise<HttpieResponse> {
+  const logger = config.logger || Shared.config.logger;
   try {
-    while (calling) await wait(500);
+    while (calling) {
+      if (logger) logger.debug(`${url.tag}: a call is in progress, waiting 500`);
+      await wait(500);
+    }
     calling = true;
 
     let delay = 0;
-    while ((delay = nextDelay(config)) > 0) await wait(delay)
+    while ((delay = nextDelay(config)) > 0) {
+      if (logger) logger.debug(`${url.tag}: rate-limiting call, waiting ${delay}`);
+      await wait(delay)
+    }
 
+    if (logger) logger.debug(`${url.tag}: calling GET ${url.safe}`);
     return await httpieGet(url.full);
   } catch (err) {
-		console.error(err);
+		if (logger) logger.error(err);
 		throw new Error(`${url.tag}: an external API error occurred in GET ${url.safe} ; ${err.message}`);
 	} finally {
     last_call = Date.now()

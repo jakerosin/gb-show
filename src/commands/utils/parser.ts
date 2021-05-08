@@ -4,7 +4,7 @@
 import commandLineArgs from 'command-line-args';
 import commandLineUsage from 'command-line-usage';
 // internal
-import Logger from './logger';
+import Logger from '../../utils/logger';
 import sharedOptions from './options';
 
 interface OptionDefinition {
