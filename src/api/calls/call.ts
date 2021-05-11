@@ -5,6 +5,7 @@ import { encode } from 'querystring';
 
 import { HttpieResponse } from 'httpie';
 
+import { wait } from '../../utils';
 import { ApiConfig } from '../base/config';
 import { ItemFilter, ListFilter, PageFilter, SearchFilter, toParams } from '../base/filter';
 import { ItemResult, ListResult } from '../base/result';
@@ -35,23 +36,44 @@ function toURL(tag: string, base: string, filter: ItemFilter = {}, config: ApiCo
   }
 }
 
-async function wait(millis: number): Promise<void> {
-  return new Promise((res) => {
-    setTimeout(function() {
-      res(null);
-    }, millis);
-  })
-};
-
 function nextDelay(config: ApiConfig): number {
   let { rate_limit_ms } = config;
   if (rate_limit_ms === void 0) rate_limit_ms = Shared.config.rate_limit_ms;
   return last_call + rate_limit_ms - Date.now();
 }
 
-async function rateLimitGet(url: URL, config: ApiConfig): Promise<HttpieResponse> {
+async function cacheGet(url: URL, config: ApiConfig): Promise<any|void> {
+  const logger = config.logger || Shared.config.logger;
+  const cache  = config.cache || Shared.config.cache;
+  if (!cache) {
+    if (logger) logger.trace(`${url.tag}: no cache provided`);
+    return null;
+  }
+
+  return await cache.get(url.safe);
+}
+
+async function cacheResponse(url: URL, data: any, config: ApiConfig): Promise<void> {
+  const logger = config.logger || Shared.config.logger;
+  const cache  = config.cache || Shared.config.cache;
+  if (!cache) {
+    if (logger) logger.trace(`${url.tag}: no cache provided`);
+    return null;
+  }
+
+  if (logger) logger.debug(`${url.tag}: caching response for ${url.safe}`);
+  await cache.put(url.safe, data);
+}
+
+async function rateLimitGet(url: URL, config: ApiConfig): Promise<any> {
   const logger = config.logger || Shared.config.logger;
   try {
+    let cachedResponse = await cacheGet(url, config);
+    if (cachedResponse) {
+      if (logger) logger.debug(`${url.tag}: using cached response for ${url.safe}`);
+      return cachedResponse;
+    }
+
     while (calling) {
       if (logger) logger.debug(`${url.tag}: a call is in progress, waiting 500`);
       await wait(500);
@@ -64,8 +86,17 @@ async function rateLimitGet(url: URL, config: ApiConfig): Promise<HttpieResponse
       await wait(delay)
     }
 
+    cachedResponse = await cacheGet(url, config);
+    if (cachedResponse) {
+      if (logger) logger.debug(`${url.tag}: using cached response for ${url.safe}`);
+      return cachedResponse;
+    }
+
     if (logger) logger.debug(`${url.tag}: calling GET ${url.safe}`);
-    return await httpieGet(url.full);
+    const { data } = await httpieGet(url.full);
+    validateResponseStatus(url, data)
+    await cacheResponse(url, data, config);
+    return data;
   } catch (err) {
 		if (logger) logger.error(err);
 		throw new Error(`${url.tag}: an external API error occurred in GET ${url.safe} ; ${err.message}`);
@@ -86,8 +117,7 @@ function validateResponseStatus(url: URL, data: any): void {
 export async function get<T>(tag: string, path: string, filter: ItemFilter, config: ApiConfig): Promise<ItemResult<T>> {
   const url = toURL(tag, path, filter, config);
 
-  const { data } = await rateLimitGet(url, config);
-  validateResponseStatus(url, data);
+  const data = await rateLimitGet(url, config);
 
   if (!data.results) {
     throw new Error(`${tag}:  GET ${url.safe} provided no results ${JSON.stringify(data)}`);
@@ -101,8 +131,7 @@ export async function get<T>(tag: string, path: string, filter: ItemFilter, conf
 export async function list<T>(tag: string, path: string, filter: ListFilter, config: ApiConfig): Promise<ListResult<T>> {
   const url = toURL(tag, path, filter, config);
 
-  const { data } = await rateLimitGet(url, config);
-  validateResponseStatus(url, data);
+  const data = await rateLimitGet(url, config);
 
   return data as ListResult<T>;
 }
@@ -144,8 +173,7 @@ export async function search<T>(tag: string, query: string, resources: string|st
   const path = 'https://www.giantbomb.com/api/search/';
   const url = toURL(tag, path, { ...filter, resources:[].concat(resources), query } as SearchFilter, config);
 
-  const { data } = await rateLimitGet(url, config);
-  validateResponseStatus(url, data);
+  const data = await rateLimitGet(url, config);
 
   return data as ListResult<T>;
 }

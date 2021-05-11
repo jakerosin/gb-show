@@ -66,10 +66,15 @@ export default async function run(dir): Promise<number> {
   }
 
   // prepare API
+  const apiCache = await api.Cache.loaded({ filename: './gb-tool.cache.json', logger, cache_duration_ms:10 });
   api.setApiKey(context.api_key);
   api.setLogger(logger);
+  api.setCache(apiCache);
 
-  return await commands.process(command, argv, context);
+  const result = await commands.process(command, argv, context);
+
+  // force write the cache
+  await apiCache.flush();
 }
 
 module.exports = exports = run;

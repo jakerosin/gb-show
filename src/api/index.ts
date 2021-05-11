@@ -8,6 +8,7 @@ import * as videoShow from './calls/video-show';
 import * as Shared from './calls/shared';
 
 // config
+import Cache from './cache';
 import Logger from '../utils/logger';
 
 // exported types
@@ -27,12 +28,18 @@ export function setLogger(logger: Logger|void): void {
   Shared.config.logger = logger;
 }
 
+export function setCache(cache: Cache|void): void {
+  Shared.config.cache = cache;
+}
+
 export const api = {
   video,
   videoShow,
   setApiKey,
   setRateLimitMS,
-  setLogger
+  setLogger,
+  setCache,
+  Cache
 }
 
 export default api;
