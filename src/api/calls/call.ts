@@ -98,7 +98,7 @@ async function rateLimitGet(url: URL, config: ApiConfig): Promise<any> {
     await cacheResponse(url, data, config);
     return data;
   } catch (err) {
-		if (logger) logger.error(err);
+		if (logger) logger.trace(`${url.tag}: error ${err.statusCode}`);
 		throw new Error(`${url.tag}: an external API error occurred in GET ${url.safe} ; ${err.message}`);
 	} finally {
     last_call = Date.now()

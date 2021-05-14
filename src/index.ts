@@ -8,6 +8,7 @@ import api from './api';
 import commands from './commands';
 
 // types
+import Cache from  './api/cache';
 import { Context } from './commands/utils/context';
 
 export default async function run(dir): Promise<number> {
@@ -66,7 +67,7 @@ export default async function run(dir): Promise<number> {
   }
 
   // prepare API
-  const apiCache = await api.Cache.loaded({ filename: './gb-tool.cache.json', logger, cache_duration_ms:10 });
+  const apiCache = await Cache.loaded({ filename: './gb-tool.cache.json', logger });
   api.setApiKey(context.api_key);
   api.setLogger(logger);
   api.setCache(apiCache);

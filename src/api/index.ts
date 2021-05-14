@@ -4,6 +4,9 @@
 import * as video from './calls/video';
 import * as videoShow from './calls/video-show';
 
+// utils
+import { isID, isGUID } from './base/result';
+
 // shared data
 import * as Shared from './calls/shared';
 
@@ -33,13 +36,19 @@ export function setCache(cache: Cache|void): void {
 }
 
 export const api = {
+  // calls
   video,
   videoShow,
+
+  // utils
+  isID,
+  isGUID,
+
+  // config
   setApiKey,
   setRateLimitMS,
   setLogger,
-  setCache,
-  Cache
+  setCache
 }
 
 export default api;

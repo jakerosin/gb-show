@@ -99,7 +99,7 @@ export default class Cache implements CacheOpts {
 
   constructor(opts: CacheOpts) {
     this.filename = opts.filename;
-    this.cache_duration_ms = opts.cache_duration_ms || 1000 * 60 * 60;
+    this.cache_duration_ms = opts.cache_duration_ms || 1000 * 60 * 60 * 4;  // 4 hours
     this.cache_flush_ms = opts.cache_flush_ms || 1000 * 5;
     this.logger = opts.logger;
     this.ready = false;

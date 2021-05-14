@@ -1,5 +1,19 @@
 'use strict';
 
+export function isID(value: any): boolean {
+  const num = Number(`${value}`);
+  return !isNaN(num) && num > 0;
+}
+
+export function isGUID(value: any): boolean {
+  try {
+    const parts = `${value}`.trim().split('-');
+    return parts.length === 2 && parts.every(isID);
+  } catch (err) {
+    return false;
+  }
+}
+
 export interface BasicItem {
   api_detail_url?: string;
   id?: number;
