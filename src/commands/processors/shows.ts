@@ -18,7 +18,10 @@ export const parser = new Parser({
   title: 'Shows',
   description: 'Loads and displays all GB show names',
   aliases,
-  synopsis: ['shows'],
+  synopsis: [
+    'shows',
+    'shows Matrix'
+  ],
   options: [
     { ...sharedOptions.show, defaultOption:true },
   ]
@@ -44,11 +47,11 @@ export async function process(argv: string[], context: Context): Promise<number>
 
   if (!showList.length) {
     logger.error(`No shows found`);
-    return ERROR.WHAT;
+    return ERROR.UNKNOWN_SHOW;
   }
 
   for (const show of showList) {
-    logger.in('blue').log(`${show.id}: ${show.title}`);
+    logger.in('blue').print(`${show.title} (id: ${show.id})`);
   }
 
   return ERROR.NONE;
