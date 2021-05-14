@@ -25,12 +25,16 @@ export default async function run(dir): Promise<number> {
     ],
     options: [
       {
+        name: 'api-key', alias: 'k', type: String,
+        description: 'API key for giantbomb.com (default: GIANTBOMB_TOKEN env variable)'
+      },
+      {
         name: 'log-level', alias: 'l', type: String, defaultValue: 'info',
         description: 'Severity level for logging: one of [off, silent, fatal, error, warn, info, debug, trace, all]'
       },
       {
-        name: 'api-key', alias: 'k', type: String,
-        description: 'API key for giantbomb.com (default: GIANTBOMB_TOKEN env variable)'
+        name: 'no-color', alias: 'c', type: Boolean, defaultValue: false,
+        description: 'Do not color log and console output for clarity'
       },
       {
         name: 'command', type: String, defaultOption: true,
@@ -52,7 +56,7 @@ export default async function run(dir): Promise<number> {
   const argv = mainOptions._unknown || [];
 
   // parse and normalize options
-  const logger = new Logger({ level:mainOptions['log-level'] });
+  const logger = new Logger({ level:mainOptions['log-level'], color:!mainOptions['no-color'] });
 
   const command = mainOptions.command.toLowerCase();
 

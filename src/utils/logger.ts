@@ -62,6 +62,7 @@ const LogColorValues = Object.values(LogColor);
 interface LoggerOpts {
   level?: LogLevel;
   wrapper?: string[];
+  color?: boolean;
 }
 
 function wrap(wrapper: string[]|void, ...args): any[] {
@@ -91,26 +92,29 @@ function colorsToWrapper(...colors: string[]): string[] {
 export default class Logger implements LoggerOpts {
   level: LogLevel;
   wrapper: string[];
+  color: boolean;
 
   constructor(opts: LoggerOpts) {
     this.level = opts.level || 'warn';
     this.wrapper = opts.wrapper || [];
+    this.color = opts.color || true;
   }
 
   in(...colors: string[]): Logger {
-    if (!colors.length) {
+    if (!colors.length || colors.every(a => !a || !a.length)) {
       return this;
     }
 
     return new Logger({
       level: this.level,
-      wrapper: colorsToWrapper(...colors)
+      wrapper: colorsToWrapper(...colors),
+      color: this.color
     });
   }
 
   out(level: number, backupWrapper: string[], ...args): void {
     if (level <= LogLevelNumber[this.level]) {
-      const output = wrap(this.wrapper.length ? this.wrapper : backupWrapper, ...args);
+      const output = this.color ? wrap(this.wrapper.length ? this.wrapper : backupWrapper, ...args) : args;
       if (level <= LogLevelNumber.error) {
         console.error(...output);
       } else if (level <= LogLevelNumber.warn) {
