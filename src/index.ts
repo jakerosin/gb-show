@@ -37,6 +37,10 @@ export default async function run(dir): Promise<number> {
         description: 'Do not color log and console output for clarity'
       },
       {
+        name: 'copy-year', alias: 'y', type: Boolean, defaultValue: false,
+        description: 'Naively copy publication year for Season ordering (do not correct for videos released in early January)'
+      },
+      {
         name: 'command', type: String, defaultOption: true,
         description: 'The command to execute; see Command List'
       }
@@ -62,7 +66,8 @@ export default async function run(dir): Promise<number> {
 
   const context: Context = {
     logger,
-    api_key: argv['api-key'] || process.env.GIANTBOMB_TOKEN
+    api_key: argv['api-key'] || process.env.GIANTBOMB_TOKEN,
+    copy_year: argv['copy-year']
   };
 
   if (!context.api_key) {
