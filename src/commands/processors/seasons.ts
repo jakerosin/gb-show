@@ -11,7 +11,7 @@ import * as shows from '../utils/shows';
 // types
 import { Context } from '../utils/context';
 
-export const aliases = ['seasons', 'show'];
+export const aliases = ['seasons', 'show', 'examine', 'episodes', 'list'];
 export const summary = 'Load and display season information about the indicated show';
 
 export const parser = new Parser({
@@ -19,7 +19,7 @@ export const parser = new Parser({
   description: 'Loads and display season information about the indicated show',
   aliases,
   synopsis: [
-    'seasons "Quick Looks"',
+    'seasons "Quick Look"',
     'seasons Endurance',
     'seasons playdate --season-type games'
   ],
@@ -64,14 +64,22 @@ export async function process(argv: string[], context: Context): Promise<number>
   const seasons = episodes.seasons[season_type];
   const recommendedSeasons = episodes.seasons[episodes.preferredSeasons];
 
-  logger.in('blue').print(`${showDetails.title} (id: ${showDetails.id}) - ${episodes.episodes.length} videos. Recommended season type: ${episodes.preferredSeasons} (${recommendedSeasons.length} seasons)`);
+  logger.in('bright', 'blue').print(`${showDetails.title} (id: ${showDetails.id}) - ${episodes.episodes.length} videos. Recommended season type: ${episodes.preferredSeasons} (${recommendedSeasons.length} seasons)`);
   seasons.forEach((season, index) => {
     const number = `${index + 1}`.padStart(2, '0');
-    logger.in('blue').print(`  Season ${number} - ${season.name} - ${season.episodes.length} episodes`);
+    const firstDate = new Date(`${season.episodes[0].publish_date}Z`);
+    const firstDay = firstDate.toISOString().replace(/T/, ' ').replace(/\..+/, '').split(' ')[0];
+    const lastDate = new Date(`${season.episodes[season.episodes.length - 1].publish_date}Z`);
+    const lastDay = lastDate.toISOString().replace(/T/, ' ').replace(/\..+/, '').split(' ')[0];
+    const publish_range = `${firstDay} - ${lastDay}`;
+    const episode_count = `${season.episodes.length} episodes`;
+    logger.in('blue').print(`  Season ${number} - ${season.name}`)
+    logger.in('dim').print(`    ${season.episodes.length} episodes  (${publish_range})`);
     if (details) {
+      // logger.in('blue').print(`  Season ${number} - ${season.name} - ${season.episodes.length} episodes`);
       season.episodes.forEach((episode, epIndex) => {
         const epNumber = `${epIndex + 1}`.padStart(2, '0');
-        logger.in('dim').print(`    Episode ${epNumber} (${episode.publish_date}) - ${episode.name}`);
+        logger.in('dim').print(`      Episode ${epNumber} (${episode.publish_date}) - ${episode.name}`);
       });
     }
   });

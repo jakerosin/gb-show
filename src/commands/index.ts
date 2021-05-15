@@ -5,13 +5,13 @@ import { ERROR } from './utils/context';
 
 // command processors
 import * as download from './processors/download';
-import * as show from './processors/show';
+import * as seasons from './processors/seasons';
 import * as shows from './processors/shows';
 
 // types
 import { Context, Command } from './utils/context';
 
-const cmds: Command[] = [download, show, shows];
+const cmds: Command[] = [download, seasons, shows];
 
 const process = async(command:string, argv: string[], context: Context): Promise<number> => {
   const { logger } = context;
@@ -40,7 +40,7 @@ const process = async(command:string, argv: string[], context: Context): Promise
 export default {
   // processors
   download,
-  show,
+  seasons,
   shows,
 
   // special commands
