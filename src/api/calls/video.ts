@@ -1,7 +1,6 @@
 'use strict';
 
 import { ApiConfig } from '../base/config';
-import * as DateUtils from '../base/date';
 import { ItemFilter, ListFilter, PageFilter } from '../base/filter';
 import { BasicItem, ItemResult, ListResult, ImageResult } from '../base/result';
 
