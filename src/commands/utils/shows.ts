@@ -42,7 +42,7 @@ export interface VideoShowEpisodes {
  */
 export async function find(ident: string|number, context: Context): Promise<VideoShowMatch|void> {
   const { logger } = context;
-  const tag = `command.utils.shows.find`;
+  const tag = `commands.utils.shows.find`;
 
   // Treat as an ID
   if (api.isID(ident)) {
@@ -142,7 +142,7 @@ export async function find(ident: string|number, context: Context): Promise<Vide
  */
 export async function list(ident: string|number, context: Context): Promise<VideoShowMatch[]> {
   const { logger } = context;
-  const tag = `command.utils.shows.list`;
+  const tag = `commands.utils.shows.list`;
 
   const showIDs = new Set<number>();
   const shows: VideoShowMatch[] = [];
@@ -235,7 +235,7 @@ export async function list(ident: string|number, context: Context): Promise<Vide
 
 export async function episodes(show: VideoShow, context: Context): Promise<VideoShowEpisodes> {
   const { logger, copy_year } = context;
-  const tag = `command.utils.shows.episodes`;
+  const tag = `commands.utils.shows.episodes`;
 
   if (!show.id) {
     throw new Error(`${tag}: show must have 'id' field; instead ${show}`);

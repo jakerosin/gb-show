@@ -23,6 +23,10 @@ export default {
     name: 'details', alias: 'd', type: Boolean, defaultValue: false,
     description: "Print additional details, such as full episode lists"
   },
+  quality: {
+    name: 'quality', alias: 'q', type: String,
+    description: "File quality: one of ['highest', 'hd', 'high', 'low']. If omitted, 'highest' is used."
+  },
   out: {
     name: 'out', alias: 'o', type: String,
     description: "Output template (or 'null')"
@@ -31,13 +35,17 @@ export default {
     name: 'video-out', alias: 'V', type: Boolean,
     description: "Output template for the video file only (or 'null')"
   },
-  info_out: {
-    name: 'info-out', alias: 'I', type: String,
-    description: "Output template for the info file only (or 'null')"
+  json_out: {
+    name: 'json-out', alias: 'J', type: String,
+    description: "Output template for the json info file only (or 'null')"
   },
-  thumb_out: {
-    name: 'thumb-out', alias: 'T', type: String,
-    description: "Output template for the thumbnail file only (or 'null')"
+  image_out: {
+    name: 'image-out', alias: 'I', type: String,
+    description: "Output template for the image file only (or 'null')"
+  },
+  replace: {
+    name: 'replace', alias: 'r', type: Boolean,
+    description: "Replace previously saved files, if they exist"
   },
   commit: {
     name: 'commit', type: Boolean,

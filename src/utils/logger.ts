@@ -125,6 +125,11 @@ export default class Logger implements LoggerOpts {
     }
   }
 
+  would(level: LogLevel): boolean {
+    const num = LogLevelNumber[level] || 0;
+    return num <= LogLevelNumber[this.level];
+  }
+
   print(...args): void {
     this.out(0, [], ...args);
   }

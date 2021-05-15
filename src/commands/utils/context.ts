@@ -8,6 +8,7 @@ export const ERROR = {
   UNKNOWN_COMMAND: 1,
   NO_TOKEN: 2,
   UNKNOWN_SHOW: 3,
+  UNKNOWN_VIDEO: 4,
   WHAT: 1000
 }
 

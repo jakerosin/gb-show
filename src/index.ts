@@ -29,7 +29,7 @@ export default async function run(dir): Promise<number> {
         description: 'API key for giantbomb.com (default: GIANTBOMB_TOKEN env variable)'
       },
       {
-        name: 'log-level', alias: 'l', type: String, defaultValue: 'info',
+        name: 'log-level', alias: 'l', type: String, defaultValue: 'warn',
         description: 'Severity level for logging: one of [off, silent, fatal, error, warn, info, debug, trace, all]'
       },
       {
@@ -37,7 +37,7 @@ export default async function run(dir): Promise<number> {
         description: 'Do not color log and console output for clarity'
       },
       {
-        name: 'copy-year', alias: 'y', type: Boolean, defaultValue: false,
+        name: 'copy-year', alias  : 'y', type: Boolean, defaultValue: false,
         description: 'Naively copy publication year for Season ordering (do not correct for videos released in early January)'
       },
       {

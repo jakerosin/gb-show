@@ -2,34 +2,35 @@
 
 import crypto from 'crypto';
 import { promises as fs } from 'fs';
+import path from 'path';
 
 import Logger from '../utils/logger';
 
-interface FileArgs {
+export interface FileArgs {
   filename: string;
   logger?: Logger;
 }
 
-interface ReadArgs<T> extends FileArgs {
+export interface ReadArgs<T> extends FileArgs {
   defaultValue?: T;
 }
 
-interface ReadObjectArgs<T> extends ReadArgs<T> {
+export interface ReadObjectArgs<T> extends ReadArgs<T> {
   processor: (text: string) => Promise<T>;
 }
 
-interface WriteArgs extends FileArgs {
+export interface WriteArgs extends FileArgs {
   backup?: boolean;
   direct?: boolean;
 }
 
-interface WriteObjectArgs<T> extends WriteArgs {
+export interface WriteObjectArgs<T> extends WriteArgs {
   backup?: boolean;
   direct?: boolean;
   processor: (T) => Promise<string>;
 }
 
-function label(n: number) {
+export function label(n: number) {
   return n > 0 ? `${Date.now()}.${generate(n)}` : `${Date.now()}`;
 }
 
@@ -40,7 +41,6 @@ function generate(n: number) {
 export async function exists(args: FileArgs): Promise<boolean> {
   const { filename, logger } = args;
   try {
-    if (logger) logger.trace(`io.exists ${filename} ?`);
     await fs.access(filename);
     if (logger) logger.trace(`io.exists ${filename} YES`);
     return true;
@@ -54,6 +54,12 @@ export async function mkdir(args: FileArgs): Promise<void> {
   const { filename, logger } = args;
   if (logger) logger.trace(`io.mkdir ${filename}`);
   await fs.mkdir(args.filename);
+}
+
+export async function mkdirs(args: FileArgs): Promise<void> {
+  const { filename, logger } = args;
+  const created = await fs.mkdir(args.filename, { recursive:true });
+  if (logger) logger.trace(`io.mkdirs ${filename} started from ${created}`);
 }
 
 export async function read<T>(args: ReadObjectArgs<T>): Promise<T> {
@@ -145,9 +151,11 @@ export async function writeJson(json: any, args: WriteArgs): Promise<void> {
   return await write(json, { ...args, processor:async (a: string) => JSON.stringify(a) });
 }
 
-export default {
+export const io = {
+  label,
   exists,
   mkdir,
+  mkdirs,
   read,
   readText,
   readJson,
@@ -155,3 +163,5 @@ export default {
   writeText,
   writeJson
 }
+
+export default io;

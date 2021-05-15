@@ -17,7 +17,7 @@ import Logger from '../utils/logger';
 // exported types
 export { Video } from './calls/video';
 export { VideoShow } from './calls/video-show';
-export { ListResult } from './base/result';
+export { ImageResult, ListResult } from './base/result';
 
 export function setApiKey(api_key: string): void {
   Shared.config.api_key = api_key;

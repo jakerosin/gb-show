@@ -12,8 +12,11 @@
   "dependencies": {
     "command-line-args": "^5.1.1",
     "command-line-usage": "^6.1.1",
+    "download": "^8.0.0",
+    "filenamify": "^4.3.0",
     "gb-dl": "^2.7.0",
     "httpie": "^1.1.2",
-    "querystring": "^0.2.1"
+    "querystring": "^0.2.1",
+    "read": "^1.0.7"
   }
 }
