@@ -1,7 +1,7 @@
 'use strict';
 
 import { api, Video, VideoShow } from '../../api';
-import { shows, VideoShowEpisodes, VideoShowSeason } from './shows';
+import { shows } from './shows';
 
 import { Context } from './context';
 
@@ -19,26 +19,6 @@ export interface VideoMatch {
   video: Video;
   matchType: VideoMatchType;
 };
-
-export interface VideoEpisodeOpts {
-  episode: number;
-  show: VideoShow;
-  episodes?: VideoShowEpisodes|void;
-  season?: number|string|void;
-  seasonType?: string|void;
-}
-
-export interface VideoEpisodeMatch {
-  video: Video;
-  seasonType: string;
-  seasonNumber: number;
-  seasonName: string;
-  seasonEpisodeNumber: number;
-  showEpisodeNumber: number;
-  seasonEpisodeCount: number;
-  showEpisodeCount: number;
-  seasonCount: number;
-}
 
 /**
  * Finds (if possible) the indicated show based on its id, guid,
@@ -222,73 +202,9 @@ export async function list(ident: string|number, show: VideoShow|null, context: 
   return videos;
 }
 
-export async function episode(opts: VideoEpisodeOpts, context: Context): Promise<VideoEpisodeMatch|void> {
-  const { logger } = context;
-  const tag = `commands.utils.videos.episode`;
-
-  const { episode, show, season } = opts;
-  const episodes = opts.episodes || await shows.episodes(show, context);
-  let seasonType = opts.seasonType || episodes.preferredSeasons;
-
-  let video: Video|void = null;
-  let seasons: VideoShowSeason[]|void = null;
-
-  if (!season) {
-    const guid = episodes.episodes[episode - 1].guid;
-    video = await api.video.get(guid);
-    seasons = episodes.seasons[seasonType];
-    if (logger) logger.debug(`${tag}: found video ${video.name} as show episode ${episode}`);
-  } else {
-    const regex = RegExp(`${season}`, 'ig');
-    const seasonNumber = Number(season);
-    if (!isNaN(seasonNumber)) {
-      let seasonObj = episodes.seasons[seasonType][seasonNumber - 1];
-      if (!seasonObj) {
-        seasonObj = episodes.seasons['years'].find(s => s.name.match(regex));
-        seasonType = 'years';
-        if (logger) logger.trace(`${tag}: trying "years" seasons as a match for numeric season`);
-      } else if (logger) logger.trace(`${tag}: trying season ${seasonNumber}th ${seasonType} season`);
-
-      if (seasonObj && episode <= seasonObj.episodes.length) {
-        video = await api.video.get(seasonObj.episodes[episode - 1].guid);
-        seasons = episodes.seasons[seasonType];
-        if (logger) logger.debug(`${tag}: found video ${video.name} as ${seasonType} season ${seasonNumber} episode ${episode}`);
-      }
-    }
-    if (!video) {
-      if (logger) logger.trace(`${tag}: checking for games season with name ${season}`);
-      const seasonObj = episodes.seasons['games'].find(s => s.name.match(regex));
-      if (seasonObj && episode <= seasonObj.episodes.length) {
-        video = await api.video.get(seasonObj.episodes[episode - 1].guid);
-        seasons = episodes.seasons[seasonType];
-        if (logger) logger.debug(`${tag}: found video ${video.name} as ${seasonType} season ${season} episode ${episode}`);
-      }
-    }
-  }
-
-  if (!video || !seasons) return null;
-  const guid = video.guid;
-
-  const seasonNumber = seasons.findIndex(s => s.episodes.some(e => e.guid === guid)) + 1;
-  if (!seasonNumber) return null;
-
-  return {
-    video,
-    seasonType,
-    seasonNumber,
-    seasonName: seasons[seasonNumber - 1].name,
-    seasonEpisodeNumber: seasons[seasonNumber - 1].episodes.findIndex(e => e.guid === guid) + 1,
-    showEpisodeNumber: episodes.episodes.findIndex(e => e.guid === guid) + 1,
-    seasonEpisodeCount: seasons[seasonNumber - 1].episodes.length,
-    showEpisodeCount: episodes.episodes.length,
-    seasonCount: seasons.length
-  }
-}
-
 export const videos = {
   find,
-  list,
-  episode
+  list
 }
 
 export default videos;

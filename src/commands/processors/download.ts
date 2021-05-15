@@ -11,9 +11,10 @@ import { ERROR } from '../utils/context';
 
 import { api, Video, VideoShow, ListResult } from '../../api';
 import { save } from '../utils/save';
-import { shows, VideoShowEpisode, VideoShowEpisodes } from '../utils/shows';
+import { shows } from '../utils/shows';
+import { catalog, Catalog, CatalogEpisodeReference } from '../utils/catalog';
 import { template } from '../utils/template';
-import { videos, VideoMatch, VideoEpisodeMatch } from '../utils/videos';
+import { videos, VideoMatch } from '../utils/videos';
 
 // types
 import { Context } from '../utils/context';
@@ -80,8 +81,8 @@ export async function process(argv: string[], context: Context): Promise<number>
   // different approaches depending on input options.
   let targetVideo: Video|void = null;
   let targetShow: VideoShow|void = null;
-  let targetEpisodes: VideoShowEpisodes|void = null;
-  let targetEpisode: VideoEpisodeMatch|void = null;
+  let targetCatalog: Catalog|void = null;
+  let targetEpisode: CatalogEpisodeReference|void = null;
 
   // query for the show if possible
   if (show) {
@@ -112,13 +113,13 @@ export async function process(argv: string[], context: Context): Promise<number>
         }
       }
 
-      if (!targetEpisodes) targetEpisodes = await shows.episodes(targetShow, context);
+      if (!targetCatalog) targetCatalog = await catalog.create(targetShow, context);
 
       const videoID = targetVideo ? targetVideo.id : null;
-      targetEpisode = await videos.episode({
-        episode: targetEpisodes.episodes.findIndex(a => a.id === videoID) + 1,
+      targetEpisode = await catalog.findEpisode({
+        episode: targetCatalog.episodes.findIndex(a => a.id === videoID) + 1,
         show: targetShow,
-        episodes: targetEpisodes,
+        catalog: targetCatalog,
         seasonType: season_type
       }, context);
       if (!targetEpisode) {
@@ -133,12 +134,12 @@ export async function process(argv: string[], context: Context): Promise<number>
 
   if (episode) {
     if (!targetShow) throw new Error(`Must specify valid --show to identify a video by --episode`);
-    if (!targetEpisodes) targetEpisodes = await shows.episodes(targetShow, context);
+    if (!targetCatalog) targetCatalog = await catalog.create(targetShow, context);
 
-    targetEpisode = await videos.episode({
+    targetEpisode = await catalog.findEpisode({
       episode,
       show: targetShow,
-      episodes: targetEpisodes,
+      catalog: targetCatalog,
       season,
       seasonType: season_type
     }, context);
@@ -149,7 +150,7 @@ export async function process(argv: string[], context: Context): Promise<number>
     logger.info(`Found ${targetVideo.name} as season ${season} episode ${episode}`);
   }
 
-  if (!targetShow || !targetVideo || !targetEpisodes || !targetEpisode) {
+  if (!targetShow || !targetVideo || !targetCatalog || !targetEpisode) {
     throw new Error(`Something went wrong`);
   }
 

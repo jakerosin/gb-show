@@ -1,7 +1,7 @@
 'use strict';
 
 import { VideoShow } from '../../api';
-import { VideoEpisodeMatch } from './videos';
+import { CatalogEpisodeReference } from './catalog';
 
 import path from 'path';
 import filenamify from 'filenamify';
@@ -43,11 +43,11 @@ function padded(num: number, cap: number): string {
   return `${num}`.padStart(sig_digits, '0');
 }
 
-export function value(templateKey: string, show: VideoShow, episode: VideoEpisodeMatch): string {
+export function value(templateKey: string, show: VideoShow, episode: CatalogEpisodeReference): string {
   return filenamify(unsafeValue(templateKey, show, episode), { replacement:'-' });
 }
 
-function unsafeValue(templateKey: string, show: VideoShow, episode: VideoEpisodeMatch): string {
+function unsafeValue(templateKey: string, show: VideoShow, episode: CatalogEpisodeReference): string {
   const key = aliaseToTemplateKey[templateKey.toLowerCase()];
   if (key === 'name') return `${episode.video.name}`;
   if (key === 'game') {
@@ -83,7 +83,7 @@ function unsafeValue(templateKey: string, show: VideoShow, episode: VideoEpisode
   throw new Error(`No value for template key ${templateKey}`);
 }
 
-export function map(template: string, show: VideoShow, episode: VideoEpisodeMatch): string {
+export function map(template: string, show: VideoShow, episode: CatalogEpisodeReference): string {
   let mapped = template;
   for (const templateName in templateAliases) {
     const templateValue = value(templateName, show, episode);

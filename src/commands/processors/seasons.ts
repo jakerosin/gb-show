@@ -6,7 +6,8 @@ import sharedOptions from '../utils/options';
 import { ERROR } from '../utils/context';
 
 import { api, VideoShow, ListResult } from '../../api';
-import * as shows from '../utils/shows';
+import { shows } from '../utils/shows';
+import { catalog } from '../utils/catalog';
 
 // types
 import { Context } from '../utils/context';
@@ -59,12 +60,12 @@ export async function process(argv: string[], context: Context): Promise<number>
   }
 
   const showDetails = matches[0].show;
-  const episodes = await shows.episodes(showDetails, context);
-  const season_type = options['season-type'] || episodes.preferredSeasons;
-  const seasons = episodes.seasons[season_type];
-  const recommendedSeasons = episodes.seasons[episodes.preferredSeasons];
+  const showCatalog = await catalog.create(showDetails, context);
+  const season_type = options['season-type'] || showCatalog.preferredSeasons;
+  const seasons = showCatalog.seasons[season_type];
+  const recommendedSeasons = showCatalog.seasons[showCatalog.preferredSeasons];
 
-  logger.in('bright', 'blue').print(`${showDetails.title} (id: ${showDetails.id}) - ${episodes.episodes.length} videos. Recommended season type: ${episodes.preferredSeasons} (${recommendedSeasons.length} seasons)`);
+  logger.in('bright', 'blue').print(`${showDetails.title} (id: ${showDetails.id}) - ${showCatalog.episodes.length} videos. Recommended season type: ${showCatalog.preferredSeasons} (${recommendedSeasons.length} seasons)`);
   seasons.forEach((season, index) => {
     const number = `${index + 1}`.padStart(2, '0');
     const firstDate = new Date(`${season.episodes[0].publish_date}Z`);
@@ -76,7 +77,6 @@ export async function process(argv: string[], context: Context): Promise<number>
     logger.in('blue').print(`  Season ${number} - ${season.name}`)
     logger.in('dim').print(`    ${season.episodes.length} episodes  (${publish_range})`);
     if (details) {
-      // logger.in('blue').print(`  Season ${number} - ${season.name} - ${season.episodes.length} episodes`);
       season.episodes.forEach((episode, epIndex) => {
         const epNumber = `${epIndex + 1}`.padStart(2, '0');
         logger.in('dim').print(`      Episode ${epNumber} (${episode.publish_date}) - ${episode.name}`);
