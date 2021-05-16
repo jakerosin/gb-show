@@ -114,14 +114,14 @@ export default class Parser implements ParserOpts {
     return commandLineUsage(this.usage);
   }
 
-  parse(argv: string[]|void): any {
+  parse(argv: string[]|void, opts: any = {}): any {
     return argv
-      ? commandLineArgs(this.options, { argv })
-      : commandLineArgs(this.options, { stopAtFirstUnknown: true });
+      ? commandLineArgs(this.options, { argv, ...opts })
+      : commandLineArgs(this.options, { stopAtFirstUnknown: true, ...opts });
   }
 
-  process(argv: string[]|void, logger?: Logger): any|void {
-    const options = this.parse(argv);
+  process(argv: string[]|void, logger: Logger|void = null, opts: any = {}): any|void {
+    const options = this.parse(argv, opts);
     const command = (argv && argv.length) ? argv[0] : 'none';
     if (options.help || (options.command && options.command.toLowerCase() === 'help') || command.toLowerCase() === 'help') {
       if (logger) {

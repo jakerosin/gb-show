@@ -1,7 +1,9 @@
 'use strict';
 
 import Logger from  '../../utils/logger';
-import Parser  from './parser';
+import Parser from './parser';
+
+import { VideoShow } from '../../api';
 
 export const ERROR = {
   NONE: 0,

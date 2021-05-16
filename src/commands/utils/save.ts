@@ -88,12 +88,12 @@ async function downloadUrl(tag: string, url: string, opts: DownloadOpts, context
         if (percentStr !== progressStr) {
           progressStr = percentStr;
           readline.cursorTo(process.stdout, 0);
-          process.stdout.write(`downloading... ${percentStr}%`);
+          process.stdout.write(`  Downloading... ${percentStr}%`);
         }
       });
       stream.on('end', () => {
         readline.cursorTo(process.stdout, 0);
-        process.stdout.write(`downloading... 100%\n`);
+        process.stdout.write(`  Downloading... 100%\n`);
       })
     }
 

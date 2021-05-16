@@ -40,14 +40,14 @@ export interface CatalogSeasonReference {
   seasonNumber: number;
   seasonName: string;
   seasonCount: number;
+  seasonEpisodeCount: number;
+  showEpisodeCount: number;
 }
 
 export interface CatalogEpisodeReference extends CatalogSeasonReference {
   video: Video;
   seasonEpisodeNumber: number;
   showEpisodeNumber: number;
-  seasonEpisodeCount: number;
-  showEpisodeCount: number;
 }
 
 export async function create(show: VideoShow, context: Context): Promise<Catalog> {
@@ -190,7 +190,9 @@ export async function findSeason(opts: CatalogSeasonReferenceOpts, context: Cont
     seasonType,
     seasonNumber,
     seasonName: catalogSeason.name,
-    seasonCount: catalog.seasons[seasonType].length
+    seasonCount: catalog.seasons[seasonType].length,
+    seasonEpisodeCount: catalogSeason.episodes.length,
+    showEpisodeCount: catalog.episodes.length
   }
 }
 
