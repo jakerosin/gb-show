@@ -97,15 +97,18 @@ export async function create(show: VideoShow, context: Context): Promise<Catalog
   }
 
   // game seasons
+  let lastGame: CatalogSeason = { name:'__stub__', episodes:[] };
   for (const episode of episodes) {
-    const gameAssociation = (episode.associations || []).find(a => a.api_detail_url.includes('/game/'))
+    const associations = episode.associations || [];
+    const gameAssociation = associations.find(a => a.api_detail_url.includes('/game/') && a.name === lastGame.name)
+      || associations.find(a => a.api_detail_url.includes('/game/'));
     const game = (gameAssociation && gameAssociation.name) || 'None';
-    let lastGame = games.find(g => g.name === game);
-    if (!lastGame) {
-      lastGame = { name:game, episodes:[] };
-      games.push(lastGame);
+    let gameSeason = games.find(g => g.name === game);
+    if (!gameSeason) {
+      gameSeason = lastGame = { name:game, episodes:[] };
+      games.push(gameSeason);
     }
-    lastGame.episodes.push(episode);
+    gameSeason.episodes.push(episode);
   }
 
   // correct year season splits, e.g. for content that
@@ -134,9 +137,9 @@ export async function create(show: VideoShow, context: Context): Promise<Catalog
     }
   }
 
-  // prefer "games" if an average of 3 __consecutive__ episodes per game, and
+  // prefer "games" if an average of 4 episodes per game, and
   // at least 2 games.
-  const preferredSeasons = games.length > 1 && episodes.length / games.length >= 5 ? 'games' : 'years';
+  const preferredSeasons = games.length > 1 && episodes.length / games.length >= 4 ? 'games' : 'years';
 
   logger.debug(`${tag}: show ${show.title} (${show.id}) has ${episodes.length} episodes, across ${years.length} years and ${games.length} games (${preferredSeasons} preferred)`);
   return  {
