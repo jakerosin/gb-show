@@ -11,7 +11,7 @@ import { ERROR } from '../utils/context';
 
 // utilities
 import { api, Video, VideoShow, ListResult } from '../../api';
-import { save } from '../utils/save';
+import { save, SaveResult } from '../utils/save';
 import { shows } from '../utils/shows';
 import { catalog, Catalog, CatalogEpisodeReference } from '../utils/catalog';
 import { template } from '../utils/template';
@@ -52,6 +52,16 @@ export const parser = new Parser({
     sharedOptions.video_out,
     sharedOptions.image_out,
     sharedOptions.metadata_out,
+    {
+      name: 'file-limit', alias: 'f', type: Number,
+      typeLabel: '{underline number of episodes}',
+      description: 'Stop downloading after this many new episodes are saved (ignoring files already downloaded).'
+    },
+    {
+      name: 'megabyte-limit', alias: 'm', type: Number,
+      typeLabel: '{underline size}',
+      description: 'Stop downloading after this many total megabytes are saved (ignoring files already downloaded). Will slightly overshoot, stopping after the first episode that exceeds this threshold.'
+    },
     sharedOptions.replace,
     sharedOptions.details,
     sharedOptions.commit
@@ -147,6 +157,8 @@ export async function process(argv: string[], context: Context): Promise<number>
   const video_out = options['video-out'];
   const data_out = options['metadata-out'];
   const image_out = options['image-out'];
+  const file_limit = options['file-limit'];
+  const megabyte_limit = options['megabyte-limit'];
   const quality = options['quality'] || 'highest';
 
   if ((video !== void 0) && (episode !== void 0)) {
@@ -167,6 +179,14 @@ export async function process(argv: string[], context: Context): Promise<number>
 
   if (quality !== void 0 && !["highest", "hd", "high", "low"].includes(quality)) {
     throw new Error(`--quality <quality> must be "highest", "hd", "high", or "low"`);
+  }
+
+  if (file_limit && replace) {
+    logger.warn(`Warning: using --replace and --file-limit together makes it harder to expand existing collections.`)
+  }
+
+  if (megabyte_limit && replace) {
+    logger.warn(`Warning: using --replace and --megabyte-limit together makes it harder to expand existing collections.`)
   }
 
   // Note: anchor-free downloads are equivalent to "from X" "through X" for the
@@ -391,9 +411,9 @@ export async function process(argv: string[], context: Context): Promise<number>
   if (!commit) {
     const action = replace ? `download (and replace)` : `download (if missing)`;
     logger.print(`Will ${action} data for ${includedIDs.size} video(s) to template-based files, saving (e.g.)`);
-    if (videoFilenameExample) logger.print(`  ${quality} quality video to ${videoFilenameExample}[.ext]`);
-    if (imageFilenameExample) logger.print(`  ${quality} quality image to ${imageFilenameExample}[.ext]`);
-    if (dataFilenameExample) logger.print(`  json-format video metadata to ${dataFilenameExample}[.ext]`);
+    if (videoFilenameExample) logger.print(`  ${quality} quality video to ${videoFilenameExample}.mp4`);
+    if (imageFilenameExample) logger.print(`  ${quality} quality image to ${imageFilenameExample}.png`);
+    if (dataFilenameExample) logger.print(`  video metadata to ${dataFilenameExample}.json`);
     logger.print()
 
     logger.in('bright').print(`To confirm, type "commit" and press ENTER`);
@@ -404,10 +424,13 @@ export async function process(argv: string[], context: Context): Promise<number>
     }
   }
 
-  for (let s = 0; s < seasons.length; s++) {
+  let limitReached: boolean = false;
+  let episodesSaved = 0;
+  let bytesSaved = 0;
+  for (let s = 0; s < seasons.length && !limitReached; s++) {
     const episodes = seasons[s].episodes;
     const sNumStr = `${s + 1}`.padStart(2, '0');
-    for (let e = 0; e < episodes.length; e++) {
+    for (let e = 0; e < episodes.length && !limitReached; e++) {
       const ep = episodes[e];
       const included = includedIDs.has(ep.id);
       if (!included) continue;
@@ -427,21 +450,43 @@ export async function process(argv: string[], context: Context): Promise<number>
       const imageFilename = toFilename(image_out, baseFilename, targetEpisode);
       const dataFilename = toFilename(data_out, baseFilename, targetEpisode, 'info');
 
+      const results: SaveResult[] = [];
+
       const eNumStr = `${e + 1}`.padStart(2, '0');
       logger.print(`Saving S${sNumStr}E${eNumStr} - ${targetVideo.name}...`);
       if (dataFilename) {
-        logger.info(`Saving json-format video metadata to ${dataFilename}[.ext]...`);
-        await save.videoInfo(targetVideo, { filename:dataFilename, logger, replace });
+        logger.info(`Saving video metadata to ${dataFilename}.json...`);
+        const result = await save.videoInfo(targetVideo, { filename:dataFilename, logger, replace });
+        results.push(result);
       }
 
       if (imageFilename) {
         logger.info(`Saving ${quality} quality image to ${imageFilename}[.ext]...`);
-        await save.videoImage(targetVideo, { filename:imageFilename, logger, replace, quality }, context);
+        const result = await save.videoImage(targetVideo, { filename:imageFilename, logger, replace, quality }, context);
+        results.push(result);
       }
 
       if (videoFilename) {
         logger.info(`Saving ${quality} quality video to ${videoFilename}[.ext]...`);
-        await save.video(targetVideo, { filename:videoFilename, logger, replace, quality }, context);
+        const result = await save.video(targetVideo, { filename:videoFilename, logger, replace, quality }, context);
+        results.push(result);
+      }
+
+      const updated = results.some(r => r.updated);
+      const size = results.reduce((acc, r) => acc + (r.updated ? r.size : 0), 0);
+
+      if (updated) {
+        episodesSaved++;
+        if (file_limit && file_limit <= episodesSaved) {
+          logger.print(`Saved ${episodesSaved} episodes: file limit reached`);
+          limitReached = true;
+        }
+      }
+
+      bytesSaved += size;
+      if (megabyte_limit && megabyte_limit <= bytesSaved / (1024 * 1024)) {
+        logger.print(`Saved ${(bytesSaved / (1024 * 1024)).toFixed(2)} megabytes; size limit reached`);
+        limitReached = true;
       }
     }
   }

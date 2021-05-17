@@ -23,6 +23,12 @@ export interface DownloadOpts extends SaveOpts {
   quality?: SaveQuality;
 }
 
+export interface SaveResult {
+  filename: string;
+  size: number;
+  updated: boolean;
+}
+
 interface URL {
   path: string|void;
   quality: SaveQuality;
@@ -67,14 +73,15 @@ async function createContainerDirectory(tag: string, opts: FileArgs): Promise<vo
   }
 }
 
-async function downloadUrl(tag: string, url: string, opts: DownloadOpts, context: Context): Promise<void> {
+async function downloadUrl(tag: string, url: string, opts: DownloadOpts, context: Context): Promise<SaveResult> {
   const { filename, replace, backup, direct } = opts;
   const { logger, api_key } = context;
 
   // replace?
   if (!replace && await io.exists({ filename })) {
     if (logger) logger.debug(`${tag}: file ${filename} already exists; not replacing`);
-    return;
+    const stat = await fs.stat(filename);
+    return { filename, size:stat.size, updated:false };
   }
 
   // container directory?
@@ -137,21 +144,28 @@ async function downloadUrl(tag: string, url: string, opts: DownloadOpts, context
     if (logger) logger.trace(`${tag}: removing backup ${backupFilename}`);
     await fs.unlink(backupFilename);
   }
+
+  const stat = await fs.stat(filename);
+  return { filename, size:stat.size, updated:true };
 }
 
-async function saveInfo(tag: string, info: any, opts: SaveOpts): Promise<void> {
+async function saveInfo(tag: string, info: any, opts: SaveOpts): Promise<SaveResult> {
   const { logger, replace } = opts;
   const filename = filenameWithExtension(opts.filename, 'json');
   if (!replace && await io.exists({ filename })) {
     if (logger) logger.debug(`${tag}: file ${filename} already exists; not replacing`);
-    return;
+    const stat = await fs.stat(filename);
+    return { filename, size:stat.size, updated:false };
   }
 
   await createContainerDirectory(tag, { filename, logger });
   await io.writeJson(info, { ...opts, filename });
+
+  const stat = await fs.stat(filename);
+  return { filename, size:stat.size, updated:true };
 }
 
-async function saveImage(tag: string, image: ImageResult, opts: DownloadOpts, context: Context): Promise<void> {
+async function saveImage(tag: string, image: ImageResult, opts: DownloadOpts, context: Context): Promise<SaveResult> {
   const { logger } = context;
   const quality = opts.quality || 'highest';
   const url = imageUrl(quality, image);
@@ -163,22 +177,22 @@ async function saveImage(tag: string, image: ImageResult, opts: DownloadOpts, co
   const noExtFilename = template.map(opts.filename, { quality:url.quality });
   const filename = filenameWithExtension(noExtFilename, extension);
 
-  await downloadUrl(tag, url.path, { ...opts, filename }, context);
+  return await downloadUrl(tag, url.path, { ...opts, filename }, context);
 }
 
-export async function videoInfo(video: Video, opts: SaveOpts): Promise<void> {
+export async function videoInfo(video: Video, opts: SaveOpts): Promise<SaveResult> {
   const tag = `commands.utils.archive.save.videoInfo`;
-  await saveInfo(tag, video, opts);
+  return await saveInfo(tag, video, opts);
 }
 
-export async function videoImage(video: Video, opts: DownloadOpts, context: Context): Promise<void> {
+export async function videoImage(video: Video, opts: DownloadOpts, context: Context): Promise<SaveResult> {
   const tag = `commands.utils.archive.save.videoImage`;
   const image = video.image;
   if (!image) throw new Error(`Video has no image`);
-  await saveImage(tag, image, opts, context);
+  return await saveImage(tag, image, opts, context);
 }
 
-export async function video(video: Video, opts: DownloadOpts, context: Context): Promise<void> {
+export async function video(video: Video, opts: DownloadOpts, context: Context): Promise<SaveResult> {
   const { logger } = context;
   const tag = `commands.utils.archive.save.video`;
   const quality = opts.quality || 'highest';
@@ -191,19 +205,19 @@ export async function video(video: Video, opts: DownloadOpts, context: Context):
   const noExtFilename = template.map(opts.filename, { quality:url.quality });
   const filename = filenameWithExtension(noExtFilename, extension);
 
-  await downloadUrl(tag, url.path, { ...opts, filename }, context);
+  return await downloadUrl(tag, url.path, { ...opts, filename }, context);
 }
 
-export async function showInfo(show: VideoShow, opts: SaveOpts): Promise<void> {
+export async function showInfo(show: VideoShow, opts: SaveOpts): Promise<SaveResult> {
   const tag = `commands.utils.archive.save.showInfo`;
-  await saveInfo(tag, video, opts);
+  return await saveInfo(tag, video, opts);
 }
 
-export async function showImage(show: VideoShow, opts: DownloadOpts, context: Context): Promise<void> {
+export async function showImage(show: VideoShow, opts: DownloadOpts, context: Context): Promise<SaveResult> {
   const tag = `commands.utils.archive.save.showImage`;
   const image = show.image;
   if (!image) throw new Error(`Show has no image`);
-  await saveImage(tag, image, opts, context);
+  return await saveImage(tag, image, opts, context);
 }
 
 export const save = {
