@@ -10,8 +10,10 @@ import readline from 'readline';
 import { io, FileArgs, WriteArgs } from '../../io';
 import { ImageResult, Video, VideoShow } from '../../api';
 import { Context } from './context';
+import { template } from './template';
 
 export type SaveQuality = 'highest'|'hd'|'high'|'low';
+const qualities: SaveQuality[] = ['hd', 'high', 'low'];
 
 export interface SaveOpts extends WriteArgs {
   replace?: boolean|void;
@@ -21,33 +23,38 @@ export interface DownloadOpts extends SaveOpts {
   quality?: SaveQuality;
 }
 
+interface URL {
+  path: string|void;
+  quality: SaveQuality;
+}
+
 function filenameWithExtension(filename: string, extension: string): string {
   const full = path.normalize(filename).replace(RegExp("{ext}", "ig"), extension);
   return full.endsWith(`.${extension}`) ? full : `${full}.${extension}`;
 }
 
-function imageUrl(quality: SaveQuality, imageResult: ImageResult): string|void {
-  let url: string|void = '';
+function imageUrl(quality: SaveQuality, imageResult: ImageResult): URL|void {
   if (quality === 'highest') {
-    return imageUrl('hd', imageResult)
-      || imageUrl('high', imageResult)
-      || imageUrl('low', imageResult);
+    for (const q of qualities) {
+      const url = imageUrl(q, imageResult);
+      if (url && url.path) return url;
+    }
   }
-  if (quality === 'hd') return imageResult.screen_large_url;
-  if (quality === 'high') return imageResult.super_url;
-  if (quality === 'low') return imageResult.medium_url;
+  if (quality === 'hd') return { path:imageResult.screen_large_url, quality };
+  if (quality === 'high') return { path:imageResult.super_url, quality };
+  if (quality === 'low') return { path:imageResult.medium_url, quality };
 }
 
-function videoUrl(quality: SaveQuality, video: Video): string|void {
-  let url: string|void = '';
+function videoUrl(quality: SaveQuality, video: Video): URL|void {
   if (quality === 'highest') {
-    return videoUrl('hd', video)
-      || videoUrl('high', video)
-      || videoUrl('low', video);
+    for (const q of qualities) {
+      const url = videoUrl(q, video);
+      if (url && url.path) return url;
+    }
   }
-  if (quality === 'hd') return video.hd_url;
-  if (quality === 'high') return video.high_url;
-  if (quality === 'low') return video.low_url;
+  if (quality === 'hd') return { path:video.hd_url, quality };
+  if (quality === 'high') return { path:video.high_url, quality };
+  if (quality === 'low') return { path:video.low_url, quality };
 }
 
 async function createContainerDirectory(tag: string, opts: FileArgs): Promise<void> {
@@ -148,14 +155,15 @@ async function saveImage(tag: string, image: ImageResult, opts: DownloadOpts, co
   const { logger } = context;
   const quality = opts.quality || 'highest';
   const url = imageUrl(quality, image);
-  if (!url) {
+  if (!url || !url.path) {
     logger.error(`${tag}: Couldn't identify ${quality} image URL`);
     throw new Error(`Couldn't save image: no ${quality} image URL`);
   }
-  const extension = path.extname(url).substring(1);
-  const filename = filenameWithExtension(opts.filename, extension);
+  const extension = path.extname(url.path).substring(1);
+  const noExtFilename = template.map(opts.filename, { quality:url.quality });
+  const filename = filenameWithExtension(noExtFilename, extension);
 
-  await downloadUrl(tag, url, { ...opts, filename }, context);
+  await downloadUrl(tag, url.path, { ...opts, filename }, context);
 }
 
 export async function videoInfo(video: Video, opts: SaveOpts): Promise<void> {
@@ -175,14 +183,15 @@ export async function video(video: Video, opts: DownloadOpts, context: Context):
   const tag = `commands.utils.archive.save.video`;
   const quality = opts.quality || 'highest';
   const url = videoUrl(quality, video);
-  if (!url) {
+  if (!url || !url.path) {
     logger.error(`${tag}: Couldn't identify ${quality} video URL`);
     throw new Error(`Couldn't save video: no ${quality} video URL`);
   }
-  const extension = path.extname(url).substring(1);
-  const filename = filenameWithExtension(opts.filename, extension);
+  const extension = path.extname(url.path).substring(1);
+  const noExtFilename = template.map(opts.filename, { quality:url.quality });
+  const filename = filenameWithExtension(noExtFilename, extension);
 
-  await downloadUrl(tag, url, { ...opts, filename }, context);
+  await downloadUrl(tag, url.path, { ...opts, filename }, context);
 }
 
 export async function showInfo(show: VideoShow, opts: SaveOpts): Promise<void> {

@@ -367,20 +367,21 @@ export async function process(argv: string[], context: Context): Promise<number>
   }
 
   const no_out = ['no', 'null', 'none'];
-  const toFilename = (out: string, fallback: string, episode: CatalogEpisodeReference) => {
+  const toFilename = (out: string, fallback: string, episode: CatalogEpisodeReference, quality?: string) => {
     if (out && no_out.includes(out.toLowerCase())) {
       return null;
     }
     if (!out || !targetShow || !episode) {
-      return fallback;
+      return (fallback && quality) ? template.map(fallback, { quality }) : fallback;
     }
-    return template.map(out, targetShow, episode);
+    return template.map(out, { show:targetShow, episode, quality });
   }
 
+  const exampleQuality = quality === 'highest' ? 'hd' : quality;
   const baseFilenameExample = toFilename(out, null, firstIncluded);
-  const videoFilenameExample = toFilename(video_out, baseFilenameExample, firstIncluded);
-  const imageFilenameExample = toFilename(image_out, baseFilenameExample, firstIncluded);
-  const dataFilenameExample = toFilename(data_out, baseFilenameExample, firstIncluded);
+  const videoFilenameExample = toFilename(video_out, baseFilenameExample, firstIncluded, exampleQuality);
+  const imageFilenameExample = toFilename(image_out, baseFilenameExample, firstIncluded, exampleQuality);
+  const dataFilenameExample = toFilename(data_out, baseFilenameExample, firstIncluded, 'info');
 
   if (!dataFilenameExample && !imageFilenameExample && !videoFilenameExample) {
     logger.print(`To save, specify --out, --video-out, etc. as a templated filename`);
@@ -424,7 +425,7 @@ export async function process(argv: string[], context: Context): Promise<number>
       const baseFilename = toFilename(out, null, targetEpisode);
       const videoFilename = toFilename(video_out, baseFilename, targetEpisode);
       const imageFilename = toFilename(image_out, baseFilename, targetEpisode);
-      const dataFilename = toFilename(data_out, baseFilename, targetEpisode);
+      const dataFilename = toFilename(data_out, baseFilename, targetEpisode, 'info');
 
       const eNumStr = `${e + 1}`.padStart(2, '0');
       logger.print(`Saving S${sNumStr}E${eNumStr} - ${targetVideo.name}...`);
