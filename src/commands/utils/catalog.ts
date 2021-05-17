@@ -149,7 +149,7 @@ export async function create(show: VideoShow, context: Context): Promise<Catalog
   }
 }
 
-export async function findSeason(opts: CatalogSeasonReferenceOpts, context: Context): Promise<CatalogSeasonReference|void> {
+export async function findSeason(opts: CatalogSeasonReferenceOpts, context: Context): Promise<CatalogSeasonReference> {
   const { logger } = context;
   const tag = `commands.utils.catalog.findSeason`;
 
@@ -182,8 +182,7 @@ export async function findSeason(opts: CatalogSeasonReferenceOpts, context: Cont
   }
 
   if (!catalogSeason) {
-    if (logger) logger.debug(`${tag} no match found for ${origSeasonType} season ${season}`);
-    return null;
+    throw new Error(`${tag} no match found for ${origSeasonType} season ${season}`);
   }
 
   return {
@@ -196,7 +195,7 @@ export async function findSeason(opts: CatalogSeasonReferenceOpts, context: Cont
   }
 }
 
-export async function findEpisode(opts: CatalogEpisodeReferenceOpts, context: Context): Promise<CatalogEpisodeReference|void> {
+export async function findEpisode(opts: CatalogEpisodeReferenceOpts, context: Context): Promise<CatalogEpisodeReference> {
   const { logger } = context;
   const tag = `commands.utils.catalog.findEpisode`;
 
@@ -243,13 +242,14 @@ export async function findEpisode(opts: CatalogEpisodeReferenceOpts, context: Co
   }
 
   if (!video || !seasons) {
-    if (logger) logger.debug(`${tag} no match found for ${origSeasonType} season ${season} episode ${episode}`);
-    return null;
+    throw new Error(`${tag} no match found for ${origSeasonType} season ${season} episode ${episode}`);
   }
   const guid = video.guid;
 
   const seasonNumber = seasons.findIndex(s => s.episodes.some(e => e.guid === guid)) + 1;
-  if (!seasonNumber) return null;
+  if (!seasonNumber) {
+    throw new Error(`${tag} no season number for episode ${guid}`);
+  }
 
   return {
     video,

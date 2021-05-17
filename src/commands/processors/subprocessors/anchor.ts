@@ -31,14 +31,10 @@ export const parser = new Parser({
   synopsis: [
     'from --season Shenmue --episode 4',
     'after --episode 40',
-    'through -i S04E17',
+    'through S04E17',
     'to --video "nidhogg"'
   ],
   options: [
-    {
-      name: 'identifier', alias: 'i', type: String,
-      description: "A one-word episode catalog reference, such as 'S02E30' or 'S04', a valid video ID or GUID, or a date (e.g. '2015-03-17' or '2020')"
-    },
     sharedOptions.video,
     sharedOptions.episode,
     sharedOptions.season
@@ -47,6 +43,7 @@ export const parser = new Parser({
 
 export type AnchorType = 'from'|'after'|'to'|'through';
 export type AnchorDirection = 'forward'|'backward';
+export type AnchorStructure = 'flat'|'season';
 export interface AnchorContext extends Context {
   show: VideoShow;
   showCatalog: Catalog;
@@ -69,6 +66,7 @@ export interface AnchorOpts {
 export interface AnchorResult {
   episode: CatalogEpisodeReference;
   inclusive: boolean;
+  structure: AnchorStructure;
   direction: AnchorDirection;
 }
 
@@ -82,6 +80,7 @@ export async function find(opts: AnchorOpts, context: Context): Promise<AnchorRe
 
   // identify inclusivity and direction. default is "from"
   let inclusive = true;
+  let structure: AnchorStructure = season ? 'season' : 'flat';
   let direction: AnchorDirection = 'forward';
   if (anchorType === 'after') {
     inclusive = false;
@@ -107,7 +106,6 @@ export async function find(opts: AnchorOpts, context: Context): Promise<AnchorRe
     }
 
     const seasonCatalogReference = await catalog.findSeason({ show, season:`${season}`, catalog:showCatalog, seasonType }, context);
-    if (!seasonCatalogReference) throw new Error(`Can't find season ${season}`);
 
     // either the first or last episode, depending on anchor type.
     // direction and inclusivity are already set, so find the episode that is
@@ -124,13 +122,11 @@ export async function find(opts: AnchorOpts, context: Context): Promise<AnchorRe
       season: seasonCatalogReference.seasonNumber,
       seasonType: seasonCatalogReference.seasonType
     }, context);
-    if (!episodeCatalogReference) {
-      throw new Error(`Couldn't find episode ${episodeNumber} in season ${season}`);
-    }
 
     return {
       episode: episodeCatalogReference,
       inclusive,
+      structure: 'season',
       direction
     };
   }
@@ -145,9 +141,6 @@ export async function find(opts: AnchorOpts, context: Context): Promise<AnchorRe
     const episodeReal: number = episode as number;  // for typescript
     const opts = { episode: episodeReal, show, catalog:showCatalog, season, seasonType };
     episodeCatalogReference = await catalog.findEpisode(opts, context);
-    if (!episodeCatalogReference) {
-      throw new Error(`Couldn't find episode ${episode} season ${season}`);
-    }
   } else if (video !== void 0) {
     const videoReal: string = video as string;  // for typescript
     const match = await videos.find(videoReal, show, context);
@@ -159,26 +152,34 @@ export async function find(opts: AnchorOpts, context: Context): Promise<AnchorRe
       show, catalog:showCatalog, seasonType
     }
     episodeCatalogReference = await catalog.findEpisode(opts, context);
-    if (!episodeCatalogReference) {
-      throw new Error(`Couldn't find episode for video "${video}"`);
-    }
   } else if (identifier) {
     // attempt to parse identifier. Note that date-based identifiers
     // have unique AnchorType behavior, since they fall between episodes,
     // not on them.
-    const seRegex = /(S[A-Za-z]*\s*(\d+))?\s*E[A-Za-z]*\s*(\d+)/i
+    const seRegex = /(S[A-Za-z]*\s*(\d+))?\s*E[A-Za-z]*\s*(\d+)/i;
     const seMatch = identifier.match(seRegex);
+    const sRegex = /S[A-Za-z]*\s*(\d+)/i;
+    const sMatch = identifier.match(sRegex);
     const date = Date.parse(identifier);
     if (seMatch) {
-      const opts = { episode:Number(seMatch[3]), show, catalog:showCatalog, season:seMatch[2], seasonType };
+      const seSeason = seMatch[2] ? seMatch[2] : season;
+      structure = seSeason ? 'season' : 'flat';
+      const opts = { episode:Number(seMatch[3]), show, catalog:showCatalog, season:seSeason, seasonType };
       episodeCatalogReference = await catalog.findEpisode(opts, context);
-      if (!episodeCatalogReference) {
-        throw new Error(`Couldn't find episode for episode ${seMatch[3]} season ${seMatch[2]}`);
+    } else if (sMatch) {
+      const sSeason = Number(sMatch[1]);
+      structure = 'season';
+      const seasonCatalogReference = await catalog.findSeason({ show, season:sSeason, catalog:showCatalog, seasonType }, context);
+      let episodeNumber = 1;
+      if (anchorType === 'after' || anchorType  === 'through') {
+        episodeNumber = seasonCatalogReference.seasonEpisodeCount;
       }
+      const opts = { episode:episodeNumber, show, catalog:showCatalog, season:Number(sMatch[1]), seasonType };
+      episodeCatalogReference = await catalog.findEpisode(opts, context);
     } else if (!isNaN(date)) {
       throw new Error(`TODO: implement Date-based parsing that supports intuitive forms like "through 2018" or "after May 2017"`);
     } else {
-      throw new Error(`Couldn't make heads or tails of identifier ${identifier}. Try something like "S02E14"`);
+      throw new Error(`Couldn't make heads or tails of anchor identifier ${identifier}. Try something like "S02E14"`);
     }
   }
 
@@ -186,6 +187,7 @@ export async function find(opts: AnchorOpts, context: Context): Promise<AnchorRe
     return {
       episode: episodeCatalogReference,
       inclusive,
+      structure,
       direction
     };
   } else {
@@ -193,10 +195,33 @@ export async function find(opts: AnchorOpts, context: Context): Promise<AnchorRe
   }
 }
 
+export function preprocess(argv: string[], context: Context): any|void {
+  const { logger } = context;
+
+  const options = parser.process(argv, logger, { stopAtFirstUnknown:true });
+  if (!options) return null;
+
+  // note: a form we want to support is "<anchor> <identifier>", e.g. "from 2017".
+  // This requires a defaultOption. However, we DON'T want it accidentally parsed
+  // if other options are specified, since it would probably indicate the start of
+  // a different subprocess or contiuation of the main process. e.g.
+  // "<anchor_1> --episode <e_1> <anchor_2> --episode <e_2>", we don't want
+  // <anchor_2> captured as an argument for <anchor_1>.
+  // Therefore we do a special-case parsing if NO options are consumed by
+  // the parser, and consume exactly one word as the default argument.
+  if (argv.length && options._unknown && options._unknown.length === argv.length) {
+    return {
+      identifier: argv[0],
+      _unknown: argv.slice(1)
+    }
+  }
+  return options;
+}
+
 export async function process(argv: string[], context: AnchorContext): Promise<AnchorResult|void> {
   const { show, showCatalog, seasonType, anchorType, logger } = context;
 
-  const options = parser.process(argv, logger);
+  const options = preprocess(argv, context);
   if (!options) return null;
 
   const { identifier, video, episode } = options;
@@ -210,6 +235,7 @@ export const anchor = {
   summary,
   parser,
   find,
+  preprocess,
   process
 }
 

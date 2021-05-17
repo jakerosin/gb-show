@@ -120,7 +120,7 @@ export async function process(argv: string[], context: Context): Promise<number>
       }
 
       logger.trace(`download preprocessing: examining anchor command [${remaining}]`);
-      const anchorOptions = anchor.parser.process(remaining.slice(1), logger, { stopAtFirstUnknown: true });
+      const anchorOptions = anchor.preprocess(remaining.slice(1), context);
       remainingArgv = anchorOptions._unknown || [];
 
       const cmd = {
@@ -283,22 +283,37 @@ export async function process(argv: string[], context: Context): Promise<number>
   targetCatalog.episodes.forEach(v => includedIDs.add(v.id));
   for (const a of anchors) {
     const anchoredIDs = new Set<number>();
-    const sStart = a.episode.seasonNumber - 1;
-    let eStart = a.episode.seasonEpisodeNumber - 1;
-    if (a.direction === 'forward') {
-      if (!a.inclusive) eStart++;
-      for (let s = sStart; s < a.episode.seasonCount; s++) {
-        const eps = targetCatalog.seasons[a.episode.seasonType][s].episodes;
-        for (let e = (s === sStart ? eStart : 0); e < eps.length; e++) {
-          anchoredIDs.add(eps[e].id);
+    if (a.structure === 'season') {
+      const sStart = a.episode.seasonNumber - 1;
+      let eStart = a.episode.seasonEpisodeNumber - 1;
+      if (a.direction === 'forward') {
+        if (!a.inclusive) eStart++;
+        for (let s = sStart; s < a.episode.seasonCount; s++) {
+          const eps = targetCatalog.seasons[a.episode.seasonType][s].episodes;
+          for (let e = (s === sStart ? eStart : 0); e < eps.length; e++) {
+            anchoredIDs.add(eps[e].id);
+          }
+        }
+      } else {
+        if (!a.inclusive) eStart--;
+        for (let s = sStart; s >= 0; s--) {
+          const eps = targetCatalog.seasons[a.episode.seasonType][s].episodes;
+          for (let e = (s === sStart ? eStart : eps.length - 1); e >= 0; e--) {
+            anchoredIDs.add(eps[e].id);
+          }
         }
       }
-    } else {
-      if (!a.inclusive) eStart--;
-      for (let s = sStart; s >= 0; s--) {
-        const eps = targetCatalog.seasons[a.episode.seasonType][s].episodes;
-        for (let e = (s === sStart ? eStart : eps.length - 1); e >= 0; e--) {
-          anchoredIDs.add(eps[e].id);
+    } else if (a.structure === 'flat') {
+      let eStart = targetCatalog.episodes.findIndex(v => v.id === a.episode.video.id);
+      if (a.direction === 'forward') {
+        if (!a.inclusive) eStart++;
+        for (let e = eStart; e < targetCatalog.episodes.length; e++) {
+          anchoredIDs.add(targetCatalog.episodes[e].id);
+        }
+      } else {
+        if (!a.inclusive) eStart--;
+        for (let e = eStart; e >= 0; e--) {
+          anchoredIDs.add(targetCatalog.episodes[e].id);
         }
       }
     }
@@ -403,9 +418,6 @@ export async function process(argv: string[], context: Context): Promise<number>
         season: s + 1,
         seasonType: season_type
       }, context);
-      if (!targetEpisode) {
-        throw new Error(`Couldn't find episode ${e + 1} season ${s + 1} in catalog`);
-      }
 
       const targetVideo  = targetEpisode.video;
 
