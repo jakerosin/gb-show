@@ -50,8 +50,8 @@ export const parser = new Parser({
     sharedOptions.quality,
     sharedOptions.out,
     sharedOptions.video_out,
-    sharedOptions.json_out,
     sharedOptions.image_out,
+    sharedOptions.metadata_out,
     sharedOptions.replace,
     sharedOptions.details,
     sharedOptions.commit
@@ -145,7 +145,7 @@ export async function process(argv: string[], context: Context): Promise<number>
   const { show, video, episode, season, out, replace, details, commit } = options;
   const season_type = options['season-type'];
   const video_out = options['video-out'];
-  const json_out = options['json-out'];
+  const data_out = options['metadata-out'];
   const image_out = options['image-out'];
   const quality = options['quality'] || 'highest';
 
@@ -365,9 +365,9 @@ export async function process(argv: string[], context: Context): Promise<number>
   const baseFilenameExample = toFilename(out, null, firstIncluded);
   const videoFilenameExample = toFilename(video_out, baseFilenameExample, firstIncluded);
   const imageFilenameExample = toFilename(image_out, baseFilenameExample, firstIncluded);
-  const jsonFilenameExample = toFilename(json_out, baseFilenameExample, firstIncluded);
+  const dataFilenameExample = toFilename(data_out, baseFilenameExample, firstIncluded);
 
-  if (!jsonFilenameExample && !imageFilenameExample && !videoFilenameExample) {
+  if (!dataFilenameExample && !imageFilenameExample && !videoFilenameExample) {
     logger.print(`To save, specify --out, --video-out, etc. as a templated filename`);
     return ERROR.NONE;
   }
@@ -377,7 +377,7 @@ export async function process(argv: string[], context: Context): Promise<number>
     logger.print(`Will ${action} data for ${includedIDs.size} video(s) to template-based files, saving (e.g.)`);
     if (videoFilenameExample) logger.print(`  ${quality} quality video to ${videoFilenameExample}[.ext]`);
     if (imageFilenameExample) logger.print(`  ${quality} quality image to ${imageFilenameExample}[.ext]`);
-    if (jsonFilenameExample) logger.print(`  json-format video info to ${jsonFilenameExample}[.ext]`);
+    if (dataFilenameExample) logger.print(`  json-format video metadata to ${dataFilenameExample}[.ext]`);
     logger.print()
 
     logger.in('bright').print(`To confirm, type "commit" and press ENTER`);
@@ -412,13 +412,13 @@ export async function process(argv: string[], context: Context): Promise<number>
       const baseFilename = toFilename(out, null, targetEpisode);
       const videoFilename = toFilename(video_out, baseFilename, targetEpisode);
       const imageFilename = toFilename(image_out, baseFilename, targetEpisode);
-      const jsonFilename = toFilename(json_out, baseFilename, targetEpisode);
+      const dataFilename = toFilename(data_out, baseFilename, targetEpisode);
 
       const eNumStr = `${e + 1}`.padStart(2, '0');
       logger.print(`Saving S${sNumStr}E${eNumStr} - ${targetVideo.name}...`);
-      if (jsonFilename) {
-        logger.info(`Saving json-format video info to ${jsonFilename}[.ext]...`);
-        await save.videoInfo(targetVideo, { filename:jsonFilename, logger, replace });
+      if (dataFilename) {
+        logger.info(`Saving json-format video metadata to ${dataFilename}[.ext]...`);
+        await save.videoInfo(targetVideo, { filename:dataFilename, logger, replace });
       }
 
       if (imageFilename) {

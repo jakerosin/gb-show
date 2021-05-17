@@ -35,22 +35,22 @@ export default {
   out: {
     name: 'out', alias: 'o', type: String,
     typeLabel: '{underline path template}',
-    description: "Output template (or 'null')"
+    description: "Output template (or 'none')"
   },
   video_out: {
     name: 'video-out', alias: 'V', type: String,
     typeLabel: '{underline path template}',
-    description: "Output template for the video file only (or 'null')"
-  },
-  json_out: {
-    name: 'json-out', alias: 'J', type: String,
-    typeLabel: '{underline path template}',
-    description: "Output template for the json info file only (or 'null')"
+    description: "Output template for the video file only (or 'none')"
   },
   image_out: {
     name: 'image-out', alias: 'I', type: String,
     typeLabel: '{underline path template}',
-    description: "Output template for the image file only (or 'null')"
+    description: "Output template for the image file only (or 'none')"
+  },
+  metadata_out: {
+    name: 'metadata-out', alias: 'M', type: String,
+    typeLabel: '{underline path template}',
+    description: "Output template for the video's metadata file only (or 'none')"
   },
   replace: {
     name: 'replace', alias: 'r', type: Boolean,
