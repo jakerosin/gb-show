@@ -33,10 +33,10 @@ export const parser = new Parser({
   description: 'Downloads a GB video and/or its associated data.',
   aliases,
   synopsis: [
-    'download Endurance --season Shenmue --episode 4 --out {video}',
-    'download "Quick Look" --video "nidhogg" --out {video}',
-    'download "Game of the Year" from --season 2014 through --season 2015 --out {video}',
-    'download "Quick Look" to --episode 100 --out {video}',
+    'download Endurance --season Shenmue --episode 4 --out <template>',
+    'download "Quick Look" --video "nidhogg" --out <template>',
+    'download "Game of the Year" from --season 2014 through --season 2015 --out <template>',
+    'download "Quick Look" to --episode 100 --out <template>',
     'download <show> [season options] [download options]',
     'download <show> [episode options] [download options]',
     'download <show> [<from, after, to, through> [episode options]] [download options]'
@@ -47,21 +47,17 @@ export const parser = new Parser({
     sharedOptions.episode,
     sharedOptions.season,
     sharedOptions.season_type,
+    sharedOptions.show_only,
     sharedOptions.quality,
     sharedOptions.out,
     sharedOptions.video_out,
     sharedOptions.image_out,
     sharedOptions.metadata_out,
-    {
-      name: 'file-limit', alias: 'f', type: Number,
-      typeLabel: '{underline number of episodes}',
-      description: 'Stop downloading after this many new episodes are saved (ignoring files already downloaded).'
-    },
-    {
-      name: 'megabyte-limit', alias: 'm', type: Number,
-      typeLabel: '{underline size}',
-      description: 'Stop downloading after this many total megabytes are saved (ignoring files already downloaded). Will slightly overshoot, stopping after the first episode that exceeds this threshold.'
-    },
+    sharedOptions.show_out,
+    sharedOptions.show_image_out,
+    sharedOptions.show_metadata_out,
+    sharedOptions.file_limit,
+    sharedOptions.megabyte_limit,
     sharedOptions.replace,
     sharedOptions.details,
     sharedOptions.commit
@@ -71,7 +67,7 @@ export const parser = new Parser({
       header: 'Download anchors: "from", "after", "to", "through"',
       content: `
       Use content anchors to download batches of videos (or images, etc.)
-      from the specified show. Anchors represent a particular episode
+      from the specified show. Anchors identify a particular episode
       (or season) of the show; the batch will begin or end with that episode.
 
       For example,
@@ -81,7 +77,7 @@ export const parser = new Parser({
       will download all episodes of the "Game of the Year" show in the 2014,
       2015, and 2016 seasons.
 
-      'download "Quick Look" to --video "Balan Wonderworld"''
+      'download "Quick Look" to --video "Balan Wonderworld"'
 
       will download all Quick Look episodes up to -- but not including --
       Balan Wonderworld.
@@ -92,7 +88,7 @@ export const parser = new Parser({
       "to" and "through" indicate the end of a batch, with "through" including
       the episode (or season) specified.
 
-      For more information, use "download from help".
+      For more information, use "download <show> from help".
       `
     }
   ]
@@ -114,13 +110,18 @@ export async function process(argv: string[], context: Context): Promise<number>
   const anchorCommands: AnchorCommand[] = [];
   while (remainingArgv.length) {
     logger.trace(`download preprocessing: examining [${remainingArgv}]`);
-    const options = parser.process(processArgv.concat(remainingArgv), logger, { stopAtFirstUnknown: true });
-    if (!options) { //  help screen displayed
-      return ERROR.NONE;
+    let remaining: any[] = [];
+    if (anchor.aliases.includes(remainingArgv[0])) {
+      remaining = remainingArgv;
+    } else {
+      const options = parser.process(processArgv.concat(remainingArgv), logger, { stopAtFirstUnknown: true });
+      if (!options) { //  help screen displayed
+        return ERROR.NONE;
+      }
+      remaining = options._unknown || [];
+      processArgv = processArgv.concat(remainingArgv.slice(0, remainingArgv.length - remaining.length));
+      logger.trace(`download preprocessing: process [${processArgv}], remaining [${remaining}]`);
     }
-    let remaining = options._unknown || [];
-    processArgv = processArgv.concat(remainingArgv.slice(0, remainingArgv.length - remaining.length));
-    logger.trace(`download preprocessing: process [${processArgv}], remaining [${remaining}]`);
 
     if (remaining.length) {
       if (!anchor.aliases.includes(remaining[0])) {
@@ -131,6 +132,7 @@ export async function process(argv: string[], context: Context): Promise<number>
 
       logger.trace(`download preprocessing: examining anchor command [${remaining}]`);
       const anchorOptions = anchor.preprocess(remaining.slice(1), context);
+      if (!anchorOptions) return ERROR.NONE;
       remainingArgv = anchorOptions._unknown || [];
 
       const cmd = {
@@ -157,12 +159,20 @@ export async function process(argv: string[], context: Context): Promise<number>
   const video_out = options['video-out'];
   const data_out = options['metadata-out'];
   const image_out = options['image-out'];
+  const show_out = options['show-out'];
+  const show_image_out = options['show-image-out'];
+  const show_metadata_out = options['show-metadata-out'];
   const file_limit = options['file-limit'];
   const megabyte_limit = options['megabyte-limit'];
+  const show_only = options['show-only'];
   const quality = options['quality'] || 'highest';
 
   if ((video !== void 0) && (episode !== void 0)) {
     throw new Error(`Can't use both --video <identifier> and --episode <number>`);
+  }
+
+  if (show_only && ((video != void 0) || (episode !== void 0) || (season !== void 0) || (anchorCommands.length))) {
+    throw new Error(`Cannot combine --show-only with video/season/episode selection`);
   }
 
   if ((video !== void 0) && (season !== void 0)) {
@@ -203,10 +213,25 @@ export async function process(argv: string[], context: Context): Promise<number>
       targetShow = match.show;
       targetCatalog = await catalog.create(targetShow, context);
       logger.info(`Found ${match.show.title} by ${match.matchType}`);
+
+      if (show_only) {
+        const anchorOpts: AnchorOpts = {
+          show: targetShow,
+          showCatalog: targetCatalog,
+          seasonType: season_type || targetCatalog.preferredSeasons,
+          anchorType: 'to',
+          episode: 1
+        }
+        anchors.push(await anchor.find(anchorOpts, context));
+      }
     } else {
       logger.in('red').print(`No shows found for "${show}"`);
       return ERROR.UNKNOWN_SHOW;
     }
+  }
+
+  if (show_only) {
+    anchors.push()
   }
 
   if (video) {
@@ -344,11 +369,8 @@ export async function process(argv: string[], context: Context): Promise<number>
   const seasons = targetCatalog.seasons[season_type || targetCatalog.preferredSeasons];
   let firstIncluded: CatalogEpisodeReference|void = null;
 
-  logger.print(`Episodes identified for download:`);
   logger.print();
-  if (includedIDs.size || details) {
-    logger.in(includedIDs.size ? 'blue' : 'black').print(`${targetShow.title}  (id: ${targetShow.id})`);
-  }
+  logger.in(includedIDs.size ? 'blue' : 'black').print(`${targetShow.title}  (id: ${targetShow.id})`);
   for (let s = 0; s < seasons.length; s++) {
     const episodes = seasons[s].episodes;
     const seasonIncluded = episodes.some(ep => includedIDs.has(ep.id));
@@ -381,20 +403,13 @@ export async function process(argv: string[], context: Context): Promise<number>
   }
   logger.print();
 
-  if (!firstIncluded) {
-    logger.print(`No episodes flagged for download (try relaxing your from/after/to/through requirements).`);
-    return ERROR.NONE;
-  }
-
   const no_out = ['no', 'null', 'none'];
-  const toFilename = (out: string, fallback: string, episode: CatalogEpisodeReference, quality?: string) => {
+  const toFilename = (out: string|void, fallback: string|void, episode: CatalogEpisodeReference|void, quality?: string) => {
     if (out && no_out.includes(out.toLowerCase())) {
       return null;
     }
-    if (!out || !targetShow || !episode) {
-      return (fallback && quality) ? template.map(fallback, { quality }) : fallback;
-    }
-    return template.map(out, { show:targetShow, episode, quality });
+    const t = out ? out : fallback;
+    return t ? template.map(t, { show:targetShow, episode, quality }) : null;
   }
 
   const exampleQuality = quality === 'highest' ? 'hd' : quality;
@@ -402,18 +417,41 @@ export async function process(argv: string[], context: Context): Promise<number>
   const videoFilenameExample = toFilename(video_out, baseFilenameExample, firstIncluded, exampleQuality);
   const imageFilenameExample = toFilename(image_out, baseFilenameExample, firstIncluded, exampleQuality);
   const dataFilenameExample = toFilename(data_out, baseFilenameExample, firstIncluded, 'info');
+  const baseShowFilenameExample = toFilename(show_out, null, null);
+  const showImageFilenameExample = toFilename(show_image_out, baseShowFilenameExample, null, exampleQuality);
+  const showDataFilenameExample = toFilename(show_metadata_out, baseShowFilenameExample, null, 'info');
 
-  if (!dataFilenameExample && !imageFilenameExample && !videoFilenameExample) {
-    logger.print(`To save, specify --out, --video-out, etc. as a templated filename`);
+  const saveEpisodes = includedIDs.size && (dataFilenameExample || imageFilenameExample || videoFilenameExample);
+  const saveShow = showImageFilenameExample || showDataFilenameExample;
+
+  if (!saveEpisodes && !saveShow) {
+    if (!firstIncluded && !show_only) {
+      logger.print(`No episodes flagged for download (try relaxing your from/after/to/through requirements).`);
+    } else {
+      logger.print(`To save, specify --out, --video-out, etc. as a templated filename`);
+    }
     return ERROR.NONE;
   }
 
   if (!commit) {
     const action = replace ? `download (and replace)` : `download (if missing)`;
-    logger.print(`Will ${action} data for ${includedIDs.size} video(s) to template-based files, saving (e.g.)`);
-    if (videoFilenameExample) logger.print(`  ${quality} quality video to ${videoFilenameExample}.mp4`);
-    if (imageFilenameExample) logger.print(`  ${quality} quality image to ${imageFilenameExample}.png`);
-    if (dataFilenameExample) logger.print(`  video metadata to ${dataFilenameExample}.json`);
+    if (saveShow) {
+      logger.print(`Will ${action} data for show "${targetShow.title}" to template-based files, saving`);
+      if (showImageFilenameExample) logger.print(`  ${quality} quality image to "${showImageFilenameExample}.png"`);
+      if (showDataFilenameExample) logger.print(`  show metadata to "${showDataFilenameExample}.json"`);
+    }
+    if (saveEpisodes) {
+      logger.print(`Will ${action} data for ${includedIDs.size} video(s) to template-based files, saving (e.g.)`);
+      if (videoFilenameExample) logger.print(`  ${quality} quality video to "${videoFilenameExample}.mp4"`);
+      if (imageFilenameExample) logger.print(`  ${quality} quality image to "${imageFilenameExample}.png"`);
+      if (dataFilenameExample) logger.print(`  video metadata to "${dataFilenameExample}.json"`);
+    } else if (!show_only) {
+      if (!firstIncluded) {
+        logger.print(`No episodes flagged for download (try relaxing your from/after/to/through requirements).`);
+      } else {
+        logger.print(`To save episodes, specify --out, --video-out, etc. as a templated filename`);
+      }
+    }
     logger.print()
 
     logger.in('bright').print(`To confirm, type "commit" and press ENTER`);
@@ -427,66 +465,97 @@ export async function process(argv: string[], context: Context): Promise<number>
   let limitReached: boolean = false;
   let episodesSaved = 0;
   let bytesSaved = 0;
-  for (let s = 0; s < seasons.length && !limitReached; s++) {
-    const episodes = seasons[s].episodes;
-    const sNumStr = `${s + 1}`.padStart(2, '0');
-    for (let e = 0; e < episodes.length && !limitReached; e++) {
-      const ep = episodes[e];
-      const included = includedIDs.has(ep.id);
-      if (!included) continue;
 
-      const targetEpisode = await catalog.findEpisode({
-        episode: e + 1,
-        show: targetShow,
-        catalog: targetCatalog,
-        season: s + 1,
-        seasonType: season_type
-      }, context);
+  if (saveShow) {
+    const baseFilename = toFilename(show_out, null, null);
+    const imageFilename = toFilename(show_image_out, baseFilename, null);
+    const dataFilename = toFilename(show_metadata_out, baseFilename, null, 'info');
+    const results: SaveResult[] = [];
 
-      const targetVideo  = targetEpisode.video;
+    logger.print(`Saving ${targetShow.title}...`);
+    if (dataFilename) {
+      logger.info(`Saving show metadata to ${dataFilename}.json...`);
+      const result = await save.showInfo(targetShow, { filename:dataFilename, logger, replace });
+      results.push(result);
+    }
 
-      const baseFilename = toFilename(out, null, targetEpisode);
-      const videoFilename = toFilename(video_out, baseFilename, targetEpisode);
-      const imageFilename = toFilename(image_out, baseFilename, targetEpisode);
-      const dataFilename = toFilename(data_out, baseFilename, targetEpisode, 'info');
+    if (imageFilename) {
+      logger.info(`Saving ${quality} quality image to ${imageFilename}[.ext]...`);
+      const result = await save.showImage(targetShow, { filename:imageFilename, logger, replace, quality }, context);
+      results.push(result);
+    }
 
-      const results: SaveResult[] = [];
+    const size = results.reduce((acc, r) => acc + (r.updated ? r.size : 0), 0);
 
-      const eNumStr = `${e + 1}`.padStart(2, '0');
-      logger.print(`Saving S${sNumStr}E${eNumStr} - ${targetVideo.name}...`);
-      if (dataFilename) {
-        logger.info(`Saving video metadata to ${dataFilename}.json...`);
-        const result = await save.videoInfo(targetVideo, { filename:dataFilename, logger, replace });
-        results.push(result);
-      }
+    bytesSaved += size;
+    if (megabyte_limit && megabyte_limit <= bytesSaved / (1024 * 1024)) {
+      logger.print(`Saved ${(bytesSaved / (1024 * 1024)).toFixed(2)} megabytes; size limit reached`);
+      limitReached = true;
+    }
+  }
 
-      if (imageFilename) {
-        logger.info(`Saving ${quality} quality image to ${imageFilename}[.ext]...`);
-        const result = await save.videoImage(targetVideo, { filename:imageFilename, logger, replace, quality }, context);
-        results.push(result);
-      }
+  if (saveEpisodes) {
+    for (let s = 0; s < seasons.length && !limitReached; s++) {
+      const episodes = seasons[s].episodes;
+      const sNumStr = `${s + 1}`.padStart(2, '0');
+      for (let e = 0; e < episodes.length && !limitReached; e++) {
+        const ep = episodes[e];
+        const included = includedIDs.has(ep.id);
+        if (!included) continue;
 
-      if (videoFilename) {
-        logger.info(`Saving ${quality} quality video to ${videoFilename}[.ext]...`);
-        const result = await save.video(targetVideo, { filename:videoFilename, logger, replace, quality }, context);
-        results.push(result);
-      }
+        const targetEpisode = await catalog.findEpisode({
+          episode: e + 1,
+          show: targetShow,
+          catalog: targetCatalog,
+          season: s + 1,
+          seasonType: season_type
+        }, context);
 
-      const updated = results.some(r => r.updated);
-      const size = results.reduce((acc, r) => acc + (r.updated ? r.size : 0), 0);
+        const targetVideo  = targetEpisode.video;
 
-      if (updated) {
-        episodesSaved++;
-        if (file_limit && file_limit <= episodesSaved) {
-          logger.print(`Saved ${episodesSaved} episodes: file limit reached`);
+        const baseFilename = toFilename(out, null, targetEpisode);
+        const videoFilename = toFilename(video_out, baseFilename, targetEpisode);
+        const imageFilename = toFilename(image_out, baseFilename, targetEpisode);
+        const dataFilename = toFilename(data_out, baseFilename, targetEpisode, 'info');
+
+        const results: SaveResult[] = [];
+
+        const eNumStr = `${e + 1}`.padStart(2, '0');
+        logger.print(`Saving S${sNumStr}E${eNumStr} - ${targetVideo.name}...`);
+        if (dataFilename) {
+          logger.info(`Saving video metadata to ${dataFilename}.json...`);
+          const result = await save.videoInfo(targetVideo, { filename:dataFilename, logger, replace });
+          results.push(result);
+        }
+
+        if (imageFilename) {
+          logger.info(`Saving ${quality} quality image to ${imageFilename}[.ext]...`);
+          const result = await save.videoImage(targetVideo, { filename:imageFilename, logger, replace, quality }, context);
+          results.push(result);
+        }
+
+        if (videoFilename) {
+          logger.info(`Saving ${quality} quality video to ${videoFilename}[.ext]...`);
+          const result = await save.video(targetVideo, { filename:videoFilename, logger, replace, quality }, context);
+          results.push(result);
+        }
+
+        const updated = results.some(r => r.updated);
+        const size = results.reduce((acc, r) => acc + (r.updated ? r.size : 0), 0);
+
+        if (updated) {
+          episodesSaved++;
+          if (file_limit && file_limit <= episodesSaved) {
+            logger.print(`Saved ${episodesSaved} episodes: file limit reached`);
+            limitReached = true;
+          }
+        }
+
+        bytesSaved += size;
+        if (megabyte_limit && megabyte_limit <= bytesSaved / (1024 * 1024)) {
+          logger.print(`Saved ${(bytesSaved / (1024 * 1024)).toFixed(2)} megabytes; size limit reached`);
           limitReached = true;
         }
-      }
-
-      bytesSaved += size;
-      if (megabyte_limit && megabyte_limit <= bytesSaved / (1024 * 1024)) {
-        logger.print(`Saved ${(bytesSaved / (1024 * 1024)).toFixed(2)} megabytes; size limit reached`);
-        limitReached = true;
       }
     }
   }

@@ -210,7 +210,7 @@ export async function video(video: Video, opts: DownloadOpts, context: Context):
 
 export async function showInfo(show: VideoShow, opts: SaveOpts): Promise<SaveResult> {
   const tag = `commands.utils.archive.save.showInfo`;
-  return await saveInfo(tag, video, opts);
+  return await saveInfo(tag, show, opts);
 }
 
 export async function showImage(show: VideoShow, opts: DownloadOpts, context: Context): Promise<SaveResult> {
