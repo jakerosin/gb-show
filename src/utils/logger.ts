@@ -97,7 +97,7 @@ export default class Logger implements LoggerOpts {
   constructor(opts: LoggerOpts) {
     this.level = opts.level || 'warn';
     this.wrapper = opts.wrapper || [];
-    this.color = opts.color || true;
+    this.color = opts.color !== void 0 ? opts.color : true;
   }
 
   in(...colors: string[]): Logger {

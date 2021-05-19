@@ -25,14 +25,14 @@ interface CacheData {
 
 export interface CacheOpts {
   filename: string;
-  cache_duration_ms?: number;
-  cache_flush_ms?: number;
+  cache_duration_ms?: number|void;
+  cache_flush_ms?: number|void;
   logger?:  Logger;
 }
 
 function evictData(data: CacheData, opts: CacheOpts): number {
   const logger = opts.logger;
-  const keepFrom = new Date(Date.now() - opts.cache_duration_ms);
+  const keepFrom = new Date(Date.now() - (opts.cache_duration_ms || 0));
   const keepFromIndex = data.calls.findIndex(call => call.date >= keepFrom);
 
   if (keepFromIndex !== 0 && data.calls.length) {

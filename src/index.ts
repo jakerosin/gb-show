@@ -1,7 +1,7 @@
 'use strict'
 
 import Parser from './commands/utils/parser';
-import { ERROR } from './commands/utils/context';
+import { ERROR, DEFAULT } from './commands/utils/context';
 import Logger from './utils/logger';
 
 import api from './api';
@@ -43,15 +43,15 @@ export default async function run(dir): Promise<number> {
     ],
     options: [
       {
-        name: 'api-key', alias: 'k', type: String,
+        name: 'api-key', alias: 'k', type: String, defaultValue: DEFAULT.api_key,
         description: 'API key for giantbomb.com (default: GIANTBOMB_TOKEN env variable)'
       },
       {
-        name: 'log-level', alias: 'l', type: String, defaultValue: 'warn',
+        name: 'log-level', alias: 'l', type: String, defaultValue: DEFAULT.log_level,
         description: 'Severity level for logging: one of [off, silent, fatal, error, warn, info, debug, trace, all]'
       },
       {
-        name: 'no-color', alias: 'c', type: Boolean, defaultValue: false,
+        name: 'no-color', alias: 'c', type: Boolean, defaultValue: DEFAULT.no_color,
         description: 'Do not color log and console output for clarity'
       },
       {
@@ -78,14 +78,17 @@ export default async function run(dir): Promise<number> {
   const argv = mainOptions._unknown || [];
 
   // parse and normalize options
-  const logger = new Logger({ level:mainOptions['log-level'], color:!mainOptions['no-color'] });
+  const logger = new Logger({
+    level:mainOptions['log-level'],
+    color:!mainOptions['no-color'] }
+  );
 
   const command = mainOptions.command.toLowerCase();
 
   const context: Context = {
     logger,
-    api_key: argv['api-key'] || process.env.GIANTBOMB_TOKEN,
-    copy_year: argv['copy-year']
+    api_key: mainOptions['api-key'],
+    copy_year: mainOptions['copy-year']
   };
 
   if (!context.api_key) {
@@ -94,15 +97,22 @@ export default async function run(dir): Promise<number> {
   }
 
   // prepare API
-  const apiCache = await Cache.loaded({ filename: './gb-show.cache.json', logger });
+  const apiCache = await Cache.loaded({
+    filename: DEFAULT.api_cache_filename || './gb-show.cache.json',
+    cache_duration_ms: DEFAULT.api_cache_duration_ms,
+    logger
+  });
   api.setApiKey(context.api_key);
   api.setLogger(logger);
   api.setCache(apiCache);
 
-  const result = await commands.process(command, argv, context);
-
-  // force write the cache
-  await apiCache.flush();
+  try {
+    const result = await commands.process(command, argv, context);
+    if (result) logger.in('red').error(`Command ${command} completed, but reported an error: ${result}`);
+    return result;
+  } finally {
+    await apiCache.flush();
+  }
 }
 
 module.exports = exports = run;
