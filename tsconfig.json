@@ -11,11 +11,13 @@
     "target": "esnext",
     "sourceMap": true,
     "allowJs": true,
-    "noEmit": true
+    "noEmit": true,
+    "types": [
+      "node"
+    ]
   },
   "include": [
-    "lib/**/*",
-    "index.ts"
+    "src/**/*"
   ],
   "exclude": [
     "node_modules",

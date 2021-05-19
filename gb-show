@@ -2,7 +2,7 @@
 
 FILE=.env
 if test -f "$FILE"; then
-  source "$FILE" && npx ts-node src/index.ts $@
+  source "$FILE" && ts-node src/index.ts $@
 else
-  npx ts-node src/index.ts $@
+  ts-node src/index.ts $@
 fi
