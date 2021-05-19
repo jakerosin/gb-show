@@ -3,10 +3,6 @@
   "version": "1.0.0",
   "description": "Tool for downloading Giant Bomb shows",
   "main": "index.ts",
-  "scripts": {
-    "do": "source .env && ts-node ./index.ts",
-    "test": "tsc --noEmit && NODE_ENV=test ts-mocha './src/**/test/*'"
-  },
   "author": "jake",
   "license": "MIT",
   "dependencies": {
