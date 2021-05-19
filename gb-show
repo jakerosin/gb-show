@@ -1,8 +1,14 @@
 #!/bin/bash
 
+if [ ! -d "node_modules" ]; then
+  echo "Installing dependencies"
+  npm install
+  echo "Finished; running gb-show"
+fi
+
 FILE=.env
 if test -f "$FILE"; then
-  source "$FILE" && ts-node src/index.ts $@
+  source "$FILE" && node_modules/.bin/ts-node src/index.ts $@
 else
-  ts-node src/index.ts $@
+  node_modules/.bin/ts-node src/index.ts $@
 fi
