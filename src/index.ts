@@ -44,7 +44,7 @@ export default async function run(dir): Promise<number> {
     options: [
       {
         name: 'api-key', alias: 'k', type: String, defaultValue: DEFAULT.api_key,
-        description: 'API key for giantbomb.com (default: GIANTBOMB_TOKEN env variable)'
+        description: 'API key for giantbomb.com (default: GBSHOW_TOKEN env variable)'
       },
       {
         name: 'log-level', alias: 'l', type: String, defaultValue: DEFAULT.log_level,
@@ -97,7 +97,7 @@ export default async function run(dir): Promise<number> {
   };
 
   if (!context.api_key) {
-    logger.error(`Must specify --api_key or set GIANTBOMB_TOKEN env variable`);
+    logger.in('red').error(`Must specify --api-key or set GBSHOW_TOKEN env variable`);
     return ERROR.NO_TOKEN;
   }
 

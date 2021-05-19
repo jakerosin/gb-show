@@ -1,3 +1,8 @@
 #!/bin/bash
 
-source .env && npx ts-node src/index.ts $@
+FILE=.env
+if test -f "$FILE"; then
+  source "$FILE" && npx ts-node src/index.ts $@
+else
+  npx ts-node src/index.ts $@
+fi
