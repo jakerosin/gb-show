@@ -115,4 +115,4 @@ export default async function run(dir): Promise<number> {
   }
 }
 
-module.exports = exports = run;
+run(__dirname).then(a => process.exit(a));
