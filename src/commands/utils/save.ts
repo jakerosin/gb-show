@@ -151,7 +151,8 @@ async function downloadUrl(tag: string, url: string, opts: DownloadOpts, context
 
 async function saveInfo(tag: string, info: any, opts: SaveOpts): Promise<SaveResult> {
   const { logger, replace } = opts;
-  const filename = filenameWithExtension(opts.filename, 'json');
+  const noExtFilename = template.map(opts.filename, { quality:'info', finalize:true });
+  const filename = filenameWithExtension(noExtFilename, 'json');
   if (!replace && await io.exists({ filename })) {
     if (logger) logger.debug(`${tag}: file ${filename} already exists; not replacing`);
     const stat = await fs.stat(filename);
@@ -174,7 +175,7 @@ async function saveImage(tag: string, image: ImageResult, opts: DownloadOpts, co
     throw new Error(`Couldn't save image: no ${quality} image URL`);
   }
   const extension = path.extname(url.path).substring(1);
-  const noExtFilename = template.map(opts.filename, { quality:url.quality });
+  const noExtFilename = template.map(opts.filename, { quality:url.quality, finalize:true });
   const filename = filenameWithExtension(noExtFilename, extension);
 
   return await downloadUrl(tag, url.path, { ...opts, filename }, context);
@@ -202,7 +203,7 @@ export async function video(video: Video, opts: DownloadOpts, context: Context):
     throw new Error(`Couldn't save video: no ${quality} video URL`);
   }
   const extension = path.extname(url.path).substring(1);
-  const noExtFilename = template.map(opts.filename, { quality:url.quality });
+  const noExtFilename = template.map(opts.filename, { quality:url.quality, finalize:true });
   const filename = filenameWithExtension(noExtFilename, extension);
 
   return await downloadUrl(tag, url.path, { ...opts, filename }, context);

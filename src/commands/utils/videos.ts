@@ -91,7 +91,11 @@ export async function find(ident: string|number, show: VideoShow|void, context: 
     const searchTypes: VideoMatchType[] = ['name', 'association'];
     for (const matchType of searchTypes) {
       const videosData = matchType === 'name'
-        ? await api.video.list({ filter:{ field:'name', value:`${ident}` }, limit:5 })
+        ? await api.video.list({
+          filter:{ field:'name', value:`${ident}` },
+          sort: { field:'publish_date', direction:'asc' },
+          limit:5
+        })
         : await api.video.search(`${ident}`, { limit:5 });
       if (videosData.results && videosData.results.length) {
         const videos = videosData.results;

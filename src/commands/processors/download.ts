@@ -14,7 +14,7 @@ import { api, Video, VideoShow, ListResult } from '../../api';
 import { save, SaveResult } from '../utils/save';
 import { shows } from '../utils/shows';
 import { catalog, Catalog, CatalogEpisodeReference } from '../utils/catalog';
-import { template } from '../utils/template';
+import { template, TemplateOpts } from '../utils/template';
 import { videos, VideoMatch } from '../utils/videos';
 
 //  subprocesses
@@ -377,6 +377,7 @@ export async function process(argv: string[], context: Context): Promise<number>
   const anchors: AnchorResult[] = [];
   let targetShow: VideoShow|void = null;
   let targetCatalog: Catalog|void = null;
+  let targetVideo: Video|void = null;
 
   // query for the show if possible
   if (show) {
@@ -385,55 +386,45 @@ export async function process(argv: string[], context: Context): Promise<number>
       targetShow = match.show;
       targetCatalog = await catalog.create(targetShow, context);
       logger.info(`Found ${match.show.title} by ${match.matchType}`);
-
-      if (show_only) {
-        const anchorOpts: AnchorOpts = {
-          show: targetShow,
-          showCatalog: targetCatalog,
-          seasonType: season_type || targetCatalog.preferredSeasons,
-          anchorType: 'to',
-          episode: 1
-        }
-        anchors.push(await anchor.find(anchorOpts, context));
-      }
     } else {
       logger.in('red').print(`No shows found for "${show}"`);
       return ERROR.UNKNOWN_SHOW;
     }
   }
 
-  if (show_only) {
-    anchors.push()
-  }
-
   if (video) {
     const match = await videos.find(video, targetShow, context);
     if (match) {
-      const targetVideo = match.video;
+      targetVideo = match.video;
       logger.info(`Found ${match.video.name} by ${match.matchType}`);
       if (!targetShow) {
         const showID = targetVideo.video_show ? targetVideo.video_show.id : null;
-        if (!showID) throw new Error(`Video has no video_show.id`);
-        const showMatch = await shows.find(showID, context);
-        if (showMatch) {
-          targetShow = showMatch.show;
+        if (showID) {
+          const showMatch = await shows.find(showID, context);
+          if (showMatch) {
+            targetShow = showMatch.show;
+          } else {
+            logger.in('red').print(`No shows found for "${showID}"`);
+            return ERROR.UNKNOWN_SHOW;
+          }
         } else {
-          logger.in('red').print(`No shows found for "${showID}"`);
-          return ERROR.UNKNOWN_SHOW;
+          logger.warn(`Video ${match.video.name} has no associated show; show- and season-based features will fail`);
         }
       }
 
-      if (!targetCatalog) targetCatalog = await catalog.create(targetShow, context);
-      const episodeNumber = targetCatalog.episodes.findIndex(a => a.id === targetVideo.id) + 1;
-      const anchorOpts: AnchorOpts = {
-        show: targetShow,
-        showCatalog: targetCatalog,
-        seasonType: season_type || targetCatalog.preferredSeasons,
-        anchorType: 'from',
-        episode: episodeNumber
+      if (targetShow && !targetCatalog) targetCatalog = await catalog.create(targetShow, context);
+      if (targetShow && targetCatalog) {
+        const episodeNumber = targetCatalog.episodes.findIndex(a => a.id === match.video.id) + 1;
+        const anchorOpts: AnchorOpts = {
+          show: targetShow,
+          showCatalog: targetCatalog,
+          seasonType: season_type || targetCatalog.preferredSeasons,
+          anchorType: 'from',
+          episode: episodeNumber
+        }
+        anchors.push(await anchor.find(anchorOpts, context));
+        anchors.push(await anchor.find({ ...anchorOpts, anchorType: 'through' }, context));
       }
-      anchors.push(await anchor.find(anchorOpts, context));
-      anchors.push(await anchor.find({ ...anchorOpts, anchorType: 'through' }, context));
     } else {
       logger.in('red').print(`No videos found for "${video}"`);
       return ERROR.UNKNOWN_VIDEO;
@@ -470,11 +461,33 @@ export async function process(argv: string[], context: Context): Promise<number>
     anchors.push(await anchor.find({ ...anchorOpts, anchorType: 'through' }, context));
   }
 
-  if (!targetShow || !targetCatalog) {
-    throw new Error(`Something went wrong: can't identify show or create catalog`);
+  if (!targetShow && !targetVideo) {
+    throw new Error(`Something went wrong: can't identify show or video`);
+  } else if (targetShow && !targetCatalog) {
+    throw new Error(`Something went wrong: couldn't create catalog`);
+  } else if ((!targetShow || !targetCatalog) && anchorCommands.length) {
+    throw new Error(`Can only process anchor commands (from, to, after, through) for shows (not videos that have no show)`);
+  }
+
+  if (show_only) {
+    if (targetShow && targetCatalog) {
+      const anchorOpts: AnchorOpts = {
+        show: targetShow,
+        showCatalog: targetCatalog,
+        seasonType: season_type || targetCatalog.preferredSeasons,
+        anchorType: 'to',
+        episode: 1
+      }
+      anchors.push(await anchor.find(anchorOpts, context));
+    } else {
+      throw new Error(`Couldn't identify show or create catalog (can't use "--show-only" when there's no show for the video!)`);
+    }
   }
 
   for (const anchorCommand of anchorCommands) {
+    if (!targetShow || !targetCatalog) {
+      throw new Error(`Something went wrong; no catalog to process anchor commands`);
+    }
     const targetAnchor = await anchor.process(anchorCommand.argv, {
       ...context,
       show: targetShow,
@@ -497,108 +510,114 @@ export async function process(argv: string[], context: Context): Promise<number>
   // Note that because seasons might hypothetically overlap in the full-show
   // ordering, you may end up with swiss-cheese selection if nomenclature is mixed.
   let includedIDs = new Set<number>();
-  targetCatalog.episodes.forEach(v => includedIDs.add(v.id));
-  for (const a of anchors) {
-    const anchoredIDs = new Set<number>();
-    if (a.structure === 'season') {
-      const sStart = a.episode.seasonNumber - 1;
-      let eStart = a.episode.seasonEpisodeNumber - 1;
-      if (a.direction === 'forward') {
-        if (!a.inclusive) eStart++;
-        for (let s = sStart; s < a.episode.seasonCount; s++) {
-          const eps = targetCatalog.seasons[a.episode.seasonType][s].episodes;
-          for (let e = (s === sStart ? eStart : 0); e < eps.length; e++) {
-            anchoredIDs.add(eps[e].id);
+  if (targetCatalog) {
+    targetCatalog.episodes.forEach(v => includedIDs.add(v.id));
+    for (const a of anchors) {
+      const anchoredIDs = new Set<number>();
+      if (a.structure === 'season') {
+        const sStart = a.episode.seasonNumber - 1;
+        let eStart = a.episode.seasonEpisodeNumber - 1;
+        if (a.direction === 'forward') {
+          if (!a.inclusive) eStart++;
+          for (let s = sStart; s < a.episode.seasonCount; s++) {
+            const eps = targetCatalog.seasons[a.episode.seasonType][s].episodes;
+            for (let e = (s === sStart ? eStart : 0); e < eps.length; e++) {
+              anchoredIDs.add(eps[e].id);
+            }
+          }
+        } else {
+          if (!a.inclusive) eStart--;
+          for (let s = sStart; s >= 0; s--) {
+            const eps = targetCatalog.seasons[a.episode.seasonType][s].episodes;
+            for (let e = (s === sStart ? eStart : eps.length - 1); e >= 0; e--) {
+              anchoredIDs.add(eps[e].id);
+            }
           }
         }
-      } else {
-        if (!a.inclusive) eStart--;
-        for (let s = sStart; s >= 0; s--) {
-          const eps = targetCatalog.seasons[a.episode.seasonType][s].episodes;
-          for (let e = (s === sStart ? eStart : eps.length - 1); e >= 0; e--) {
-            anchoredIDs.add(eps[e].id);
+      } else if (a.structure === 'flat') {
+        let eStart = targetCatalog.episodes.findIndex(v => v.id === a.episode.video.id);
+        if (a.direction === 'forward') {
+          if (!a.inclusive) eStart++;
+          for (let e = eStart; e < targetCatalog.episodes.length; e++) {
+            anchoredIDs.add(targetCatalog.episodes[e].id);
+          }
+        } else {
+          if (!a.inclusive) eStart--;
+          for (let e = eStart; e >= 0; e--) {
+            anchoredIDs.add(targetCatalog.episodes[e].id);
           }
         }
       }
-    } else if (a.structure === 'flat') {
-      let eStart = targetCatalog.episodes.findIndex(v => v.id === a.episode.video.id);
-      if (a.direction === 'forward') {
-        if (!a.inclusive) eStart++;
-        for (let e = eStart; e < targetCatalog.episodes.length; e++) {
-          anchoredIDs.add(targetCatalog.episodes[e].id);
-        }
-      } else {
-        if (!a.inclusive) eStart--;
-        for (let e = eStart; e >= 0; e--) {
-          anchoredIDs.add(targetCatalog.episodes[e].id);
-        }
-      }
+      includedIDs = new Set([...includedIDs].filter(i => anchoredIDs.has(i)));
     }
-    includedIDs = new Set([...includedIDs].filter(i => anchoredIDs.has(i)));
+  } else if (targetVideo) {
+    // no catalog (meaning, no show) but there is a video specified.
+    includedIDs.add(targetVideo.id);
   }
 
-
-  const seasons = targetCatalog.seasons[season_type || targetCatalog.preferredSeasons];
+  // print the videos to be downloaded
+  logger.print();
   let firstIncluded: CatalogEpisodeReference|void = null;
+  if (targetShow && targetCatalog) {
+    const seasons = targetCatalog.seasons[season_type || targetCatalog.preferredSeasons];
 
-  logger.print();
-  logger.in(includedIDs.size ? 'blue' : 'black').print(`${targetShow.title}  (id: ${targetShow.id})`);
-  for (let s = 0; s < seasons.length; s++) {
-    const episodes = seasons[s].episodes;
-    const seasonIncluded = episodes.some(ep => includedIDs.has(ep.id));
+    logger.in(includedIDs.size ? 'blue' : 'black').print(`${targetShow.title}  (id: ${targetShow.id})`);
+    for (let s = 0; s < seasons.length; s++) {
+      const episodes = seasons[s].episodes;
+      const seasonIncluded = episodes.some(ep => includedIDs.has(ep.id));
 
-    if (seasonIncluded || details) {
-      const seasonName = seasons[s].name;
-      const seasonNumStr = `${s + 1}`.padStart(2, '0');
-      logger.in(seasonIncluded ? 'blue' : 'black').print(`  Season ${seasonNumStr} - ${seasonName}`);
+      if (seasonIncluded || details) {
+        const seasonName = seasons[s].name;
+        const seasonNumStr = `${s + 1}`.padStart(2, '0');
+        logger.in(seasonIncluded ? 'blue' : 'black').print(`  Season ${seasonNumStr} - ${seasonName}`);
 
-      for (let e = 0; e < episodes.length; e++) {
-        const targetVideo = episodes[e];
-        const included = includedIDs.has(targetVideo.id);
-        const episodeNumStr = `${e + 1}`.padStart(2, '0');
-        const prefix = !details ? '  ' : (included ? ' + ' : '   ');
-        if (included || details) {
-          logger.in(included ? 'blue' : 'dim').print(`  ${prefix}Episode ${episodeNumStr} - ${targetVideo.name}`);
-        }
+        for (let e = 0; e < episodes.length; e++) {
+          const targetVideo = episodes[e];
+          const included = includedIDs.has(targetVideo.id);
+          const episodeNumStr = `${e + 1}`.padStart(2, '0');
+          const prefix = !details ? '  ' : (included ? ' + ' : '   ');
+          if (included || details) {
+            logger.in(included ? 'blue' : 'dim').print(`  ${prefix}Episode ${episodeNumStr} - ${targetVideo.name}`);
+          }
 
-        if (included && !firstIncluded) {
-          firstIncluded = await catalog.findEpisode({
-            episode: e + 1,
-            show: targetShow,
-            catalog: targetCatalog,
-            season: s + 1,
-            seasonType: season_type
-          }, context);
+          if (included && !firstIncluded) {
+            firstIncluded = await catalog.findEpisode({
+              episode: e + 1,
+              show: targetShow,
+              catalog: targetCatalog,
+              season: s + 1,
+              seasonType: season_type
+            }, context);
+          }
         }
       }
     }
+  } else if (targetVideo) {
+    logger.in('blue').print(`${targetVideo.name}`);
+    logger.print(`  No show information available`);
   }
   logger.print();
 
-  const no_out = ['no', 'null', 'none'];
-  const toFilename = (out: string|void, fallback: string|void, episode: CatalogEpisodeReference|void, quality?: string) => {
-    if (out && no_out.includes(out.toLowerCase())) {
-      return null;
-    }
-    const t = out ? out : fallback;
-    return t ? template.map(t, { show:targetShow, episode, quality }) : null;
-  }
-
+  // print example filenames
   const exampleQuality = quality === 'highest' ? 'hd' : quality;
-  const baseFilenameExample = toFilename(out, null, firstIncluded);
-  const videoFilenameExample = toFilename(video_out, baseFilenameExample, firstIncluded, exampleQuality);
-  const imageFilenameExample = toFilename(image_out, baseFilenameExample, firstIncluded, exampleQuality);
-  const dataFilenameExample = toFilename(data_out, baseFilenameExample, firstIncluded, 'info');
-  const baseShowFilenameExample = toFilename(show_out, null, null);
-  const showImageFilenameExample = toFilename(show_image_out, baseShowFilenameExample, null, exampleQuality);
-  const showDataFilenameExample = toFilename(show_metadata_out, baseShowFilenameExample, null, 'info');
+  const exTemplateOpts: TemplateOpts = { show:targetShow, video:targetVideo, episode:firstIncluded };
+  const baseFilenameExample = toFilename(out, null, exTemplateOpts);
+  const videoFilenameExample = toFilename(video_out, baseFilenameExample, { ...exTemplateOpts, quality:exampleQuality, finalize:true });
+  const imageFilenameExample = toFilename(image_out, baseFilenameExample, { ...exTemplateOpts, quality:exampleQuality, finalize:true });
+  const dataFilenameExample = toFilename(data_out, baseFilenameExample, { ...exTemplateOpts, quality:'info', finalize:true });
+  const baseShowFilenameExample = toFilename(show_out, null, { show:targetShow });
+  const showImageFilenameExample = toFilename(show_image_out, baseShowFilenameExample, { show:targetShow, quality:exampleQuality, finalize:true });
+  const showDataFilenameExample = toFilename(show_metadata_out, baseShowFilenameExample, { show:targetShow, quality:'info', finalize:true });
 
-  const saveEpisodes = includedIDs.size && (dataFilenameExample || imageFilenameExample || videoFilenameExample);
-  const saveShow = showImageFilenameExample || showDataFilenameExample;
+  const savingVideo = targetVideo && !targetCatalog && (dataFilenameExample || imageFilenameExample || videoFilenameExample);
+  const savingEpisodes = targetCatalog && includedIDs.size && (dataFilenameExample || imageFilenameExample || videoFilenameExample);
+  const savingShow = showImageFilenameExample || showDataFilenameExample;
 
-  if (!saveEpisodes && !saveShow) {
-    if (!firstIncluded && !show_only) {
+  if (!savingVideo && !savingEpisodes && !savingShow) {
+    if (!firstIncluded && !show_only && targetCatalog) {
       logger.print(`No episodes flagged for download (try relaxing your from/after/to/through requirements).`);
+    } else if (show_only) {
+      logger.print(`To save, specify --show-out, --show-image-out, etc. as a templated filename`);
     } else {
       logger.print(`To save, specify --out, --video-out, etc. as a templated filename`);
     }
@@ -607,18 +626,19 @@ export async function process(argv: string[], context: Context): Promise<number>
 
   if (!commit) {
     const action = replace ? `download (and replace)` : `download (if missing)`;
-    if (saveShow) {
+    if (savingShow && targetShow) {
       logger.print(`Will ${action} data for show "${targetShow.title}" to template-based files, saving`);
       if (showImageFilenameExample) logger.print(`  ${quality} quality image to "${showImageFilenameExample}.png"`);
       if (showDataFilenameExample) logger.print(`  show metadata to "${showDataFilenameExample}.json"`);
     }
-    if (saveEpisodes) {
-      logger.print(`Will ${action} data for ${includedIDs.size} video(s) to template-based files, saving (e.g.)`);
+    if (savingVideo || savingEpisodes) {
+      const target = targetVideo || (firstIncluded && firstIncluded.video);
+      logger.print(`Will ${action} data for video "${target ? target.name : 'Unknown'}" to template-based files, saving (e.g.)`);
       if (videoFilenameExample) logger.print(`  ${quality} quality video to "${videoFilenameExample}.mp4"`);
       if (imageFilenameExample) logger.print(`  ${quality} quality image to "${imageFilenameExample}.png"`);
       if (dataFilenameExample) logger.print(`  video metadata to "${dataFilenameExample}.json"`);
     } else if (!show_only) {
-      if (!firstIncluded) {
+      if (!firstIncluded && targetCatalog) {
         logger.print(`No episodes flagged for download (try relaxing your from/after/to/through requirements).`);
       } else {
         logger.print(`To save episodes, specify --out, --video-out, etc. as a templated filename`);
@@ -638,25 +658,9 @@ export async function process(argv: string[], context: Context): Promise<number>
   let episodesSaved = 0;
   let bytesSaved = 0;
 
-  if (saveShow) {
-    const baseFilename = toFilename(show_out, null, null);
-    const imageFilename = toFilename(show_image_out, baseFilename, null);
-    const dataFilename = toFilename(show_metadata_out, baseFilename, null, 'info');
-    const results: SaveResult[] = [];
-
+  if (savingShow && targetShow) {
     logger.print(`Saving ${targetShow.title}...`);
-    if (dataFilename) {
-      logger.info(`Saving show metadata to ${dataFilename}.json...`);
-      const result = await save.showInfo(targetShow, { filename:dataFilename, logger, replace });
-      results.push(result);
-    }
-
-    if (imageFilename) {
-      logger.info(`Saving ${quality} quality image to ${imageFilename}[.ext]...`);
-      const result = await save.showImage(targetShow, { filename:imageFilename, logger, replace, quality }, context);
-      results.push(result);
-    }
-
+    const results = await saveShow(targetShow, options, context);
     const size = results.reduce((acc, r) => acc + (r.updated ? r.size : 0), 0);
 
     bytesSaved += size;
@@ -666,7 +670,29 @@ export async function process(argv: string[], context: Context): Promise<number>
     }
   }
 
-  if (saveEpisodes) {
+  if (savingVideo && targetVideo) {
+    logger.print(`Saving ${targetVideo.name}...`);
+    const results = await saveVideo(targetShow, targetVideo, null, options, context);
+    const updated = results.some(r => r.updated);
+    const size = results.reduce((acc, r) => acc + (r.updated ? r.size : 0), 0);
+
+    if (updated) {
+      episodesSaved++;
+      if (file_limit && file_limit <= episodesSaved) {
+        logger.print(`Saved ${episodesSaved} episodes: file limit reached`);
+        limitReached = true;
+      }
+    }
+
+    bytesSaved += size;
+    if (megabyte_limit && megabyte_limit <= bytesSaved / (1024 * 1024)) {
+      logger.print(`Saved ${(bytesSaved / (1024 * 1024)).toFixed(2)} megabytes; size limit reached`);
+      limitReached = true;
+    }
+  }
+
+  if (savingEpisodes && targetShow && targetCatalog) {
+    const seasons = targetCatalog.seasons[season_type || targetCatalog.preferredSeasons];
     for (let s = 0; s < seasons.length && !limitReached; s++) {
       const episodes = seasons[s].episodes;
       const sNumStr = `${s + 1}`.padStart(2, '0');
@@ -683,35 +709,10 @@ export async function process(argv: string[], context: Context): Promise<number>
           seasonType: season_type
         }, context);
 
-        const targetVideo  = targetEpisode.video;
-
-        const baseFilename = toFilename(out, null, targetEpisode);
-        const videoFilename = toFilename(video_out, baseFilename, targetEpisode);
-        const imageFilename = toFilename(image_out, baseFilename, targetEpisode);
-        const dataFilename = toFilename(data_out, baseFilename, targetEpisode, 'info');
-
-        const results: SaveResult[] = [];
-
         const eNumStr = `${e + 1}`.padStart(2, '0');
-        logger.print(`Saving S${sNumStr}E${eNumStr} - ${targetVideo.name}...`);
-        if (dataFilename) {
-          logger.info(`Saving video metadata to ${dataFilename}.json...`);
-          const result = await save.videoInfo(targetVideo, { filename:dataFilename, logger, replace });
-          results.push(result);
-        }
+        logger.print(`Saving S${sNumStr}E${eNumStr} - ${targetEpisode.video.name}...`);
 
-        if (imageFilename) {
-          logger.info(`Saving ${quality} quality image to ${imageFilename}[.ext]...`);
-          const result = await save.videoImage(targetVideo, { filename:imageFilename, logger, replace, quality }, context);
-          results.push(result);
-        }
-
-        if (videoFilename) {
-          logger.info(`Saving ${quality} quality video to ${videoFilename}[.ext]...`);
-          const result = await save.video(targetVideo, { filename:videoFilename, logger, replace, quality }, context);
-          results.push(result);
-        }
-
+        const results = await saveVideo(targetShow, null, targetEpisode, options, context);
         const updated = results.some(r => r.updated);
         const size = results.reduce((acc, r) => acc + (r.updated ? r.size : 0), 0);
 
@@ -734,4 +735,83 @@ export async function process(argv: string[], context: Context): Promise<number>
 
   logger.in('bright').print('Done!');
   return ERROR.NONE;
+}
+
+const no_out = ['no', 'null', 'none'];
+function toFilename(out: string|void, fallback: string|void, opts:TemplateOpts): string|void {
+  if (out && no_out.includes(out.toLowerCase())) {
+    return null;
+  }
+  const t = out ? out : fallback;
+  return t ? template.map(t, opts) : null;
+}
+
+async function saveShow(show: VideoShow, options: any, context: Context): Promise<SaveResult[]> {
+  const { logger } = context;
+  const { quality, replace } = options;
+  const show_out = options['show-out'];
+  const show_image_out = options['show-image-out'];
+  const show_metadata_out = options['show-metadata-out'];
+
+  const baseFilename = toFilename(show_out, null, { show });
+  const imageFilename = toFilename(show_image_out, baseFilename, { show });
+  const dataFilename = toFilename(show_metadata_out, baseFilename, { show, quality:'info' });
+  const results: SaveResult[] = [];
+
+  if (imageFilename || dataFilename) {
+    if (dataFilename) {
+      logger.info(`Saving show metadata to ${dataFilename}.json...`);
+      const result = await save.showInfo(show, { filename:dataFilename, logger, replace });
+      results.push(result);
+    }
+
+    if (imageFilename) {
+      logger.info(`Saving ${quality} quality image to ${imageFilename}[.ext]...`);
+      const result = await save.showImage(show, { filename:imageFilename, logger, replace, quality }, context);
+      results.push(result);
+    }
+  }
+
+  return results;
+}
+
+async function saveVideo(show: VideoShow|void, video: Video|void, episode: CatalogEpisodeReference|void, options: any, context: Context): Promise<SaveResult[]> {
+  const targetVideo = video || (episode ? episode.video : null);
+  if (!targetVideo) {
+    throw new Error(`Can't save non-existent video`);
+  }
+
+  const { logger } = context;
+  const { out, quality, replace } = options;
+  const video_out = options['video-out'];
+  const data_out = options['metadata-out'];
+  const image_out = options['image-out'];
+
+  const templateOpts: TemplateOpts = { show, video, episode }
+  const baseFilename = toFilename(out, null, templateOpts);
+  const videoFilename = toFilename(video_out, baseFilename, templateOpts);
+  const imageFilename = toFilename(image_out, baseFilename, templateOpts);
+  const dataFilename = toFilename(data_out, baseFilename, { ...templateOpts, quality:'info' });
+
+  const results: SaveResult[] = [];
+
+  if (dataFilename) {
+    logger.info(`Saving video metadata to ${dataFilename}.json...`);
+    const result = await save.videoInfo(targetVideo, { filename:dataFilename, logger, replace });
+    results.push(result);
+  }
+
+  if (imageFilename) {
+    logger.info(`Saving ${quality} quality image to ${imageFilename}[.ext]...`);
+    const result = await save.videoImage(targetVideo, { filename:imageFilename, logger, replace, quality }, context);
+    results.push(result);
+  }
+
+  if (videoFilename) {
+    logger.info(`Saving ${quality} quality video to ${videoFilename}[.ext]...`);
+    const result = await save.video(targetVideo, { filename:videoFilename, logger, replace, quality }, context);
+    results.push(result);
+  }
+
+  return results;
 }
