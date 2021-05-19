@@ -339,6 +339,12 @@ export async function process(argv: string[], context: Context): Promise<number>
   const show_only = options['show-only'];
   const quality = options['quality'] || 'highest';
 
+  if (video === void 0 && show === void 0 && !anchorCommands.length) {
+    logger.print(parser.help());
+    logger.in('red').print(`Must specify a show, video, or content anchor`);
+    throw new Error(`download: must specify content to download`);
+  }
+
   if ((video !== void 0) && (episode !== void 0)) {
     throw new Error(`Can't use both --video <identifier> and --episode <number>`);
   }

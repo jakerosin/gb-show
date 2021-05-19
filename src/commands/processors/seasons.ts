@@ -50,7 +50,11 @@ export async function process(argv: string[], context: Context): Promise<number>
 
   const { show, details } = options;
 
-  if (!show) throw new Error(`Must specify a show. IDs or partial names are acceptable, e.g. "4" or "Endurance"`);
+  if (!show) {
+    logger.print(parser.help());
+    logger.in('red').print(`Must specify a show. IDs or partial names are acceptable, e.g. "4" or "Endurance"`);
+    throw new Error(`seasons: must specify a show`);
+  }
 
   const matches = await shows.list(show, context);
   if (details && matches.length > 1) {

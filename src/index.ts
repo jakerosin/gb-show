@@ -83,6 +83,11 @@ export default async function run(dir): Promise<number> {
     color:!mainOptions['no-color'] }
   );
 
+  if (!mainOptions.command) {
+    logger.print(parser.help());
+    logger.in('red').print(`Must specify a command, e.g. "gb-show help" or "gb-show list"`);
+    throw new Error(`No command specified`);
+  }
   const command = mainOptions.command.toLowerCase();
 
   const context: Context = {
