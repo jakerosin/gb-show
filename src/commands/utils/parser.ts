@@ -24,11 +24,13 @@ interface UsageExample {
 }
 
 interface UsageCommand {
-  name: string;
+  name?: string;
   summary: string;
 }
 
-type UsageContent = string|string[]|UsageExample[]|UsageCommand[];
+type Usage = UsageExample|UsageCommand;
+
+type UsageContent = string|string[]|Usage[];
 
 interface UsageSection {
   header?: string;

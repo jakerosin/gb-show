@@ -12,12 +12,23 @@ import { catalog } from '../utils/catalog';
 // types
 import { Context } from '../utils/context';
 
-export const aliases = ['seasons', 'show', 'examine', 'episodes', 'list'];
+export const aliases = ['seasons', 'examine', 'episodes'];
 export const summary = 'Load and display season information about the indicated show';
 
 export const parser = new Parser({
   title: 'Seasons',
-  description: 'Loads and display season information about the indicated show',
+  description: `
+  Generate and print a season structure for the indicated show, which will be
+  based on either year of release or the game associated with each episode.
+
+  The season type -- "years" or "games" -- will be inferred based on the overall
+  video release structure, but can optionally be specified with "--season-type <type>".
+
+  Because generating a season structure requires examination of every video released
+  for the show, this feature makes multiple Giant Bomb API calls and for long-running
+  shows may take a noticeable amount of time before displaying results (API calls
+  are rate-limited to 1 second per call).
+  `,
   aliases,
   synopsis: [
     'seasons "Quick Look"',

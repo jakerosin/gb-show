@@ -1,1 +1,1 @@
-# gb-tool
+# gb-show

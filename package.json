@@ -1,7 +1,7 @@
 {
-  "name": "gb-tool",
+  "name": "gb-show",
   "version": "1.0.0",
-  "description": "Tool for batch-downloads of Giant Bomb videos",
+  "description": "Tool for downloading Giant Bomb shows",
   "main": "index.ts",
   "scripts": {
     "do": "source .env && ts-node ./index.ts",

@@ -18,10 +18,28 @@ export default async function run(dir): Promise<number> {
   }).sort((a, b) => a.name < b.name ? -1 : a.name > b.name ? 1 : 0);
 
   const parser = new Parser({
-    title: 'GB Tool',
-    description: 'A tool for finding and archiving Giant Bomb videos (e.g. for Plex)',
+    title: 'gb-show',
+    description: `
+      A CLI for downloading and organizing Giant Bomb videos (e.g. for archival,
+        Plex, etc.). Save video files, thumbnails, and associated metadata into
+        custom file structures using templated output paths.
+
+      Primarily designed for medium-scale batch downloads of shows organized into
+        an inferred season-based structure. To download just a few of your
+        favorite videos, or the most recent releases, try www.giantbomb.com or
+        other tools such as "gb-dl" (github.com/lightpohl/gb-dl)
+
+      Don't distribute copyrighted content. Always stay within the Giant Bomb
+        API usage guidelines, and don't download more than 100 videos per day.
+        Due to API rate limiting, some commands may take a noticeably long time
+        to complete, especially when constructing a show's season structure.
+    `,
     synopsis: [
-      'gb-tool <options> [command <options>]'
+      'gb-show <options> [command <options>]',
+      'gb-show list',
+      'gb-show find <show>',
+      'gb-show seasons <show>',
+      'gb-show download <show>'
     ],
     options: [
       {
@@ -51,7 +69,7 @@ export default async function run(dir): Promise<number> {
         content: commandSummaries
       }
     ],
-    footer: 'For information on a specific command, use "gb-tool [command] help"'
+    footer: 'For information on a specific command, use "gb-show [command] help"'
   });
 
   const mainOptions = parser.process(null);
@@ -76,7 +94,7 @@ export default async function run(dir): Promise<number> {
   }
 
   // prepare API
-  const apiCache = await Cache.loaded({ filename: './gb-tool.cache.json', logger });
+  const apiCache = await Cache.loaded({ filename: './gb-show.cache.json', logger });
   api.setApiKey(context.api_key);
   api.setLogger(logger);
   api.setCache(apiCache);

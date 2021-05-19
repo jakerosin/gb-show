@@ -25,14 +25,33 @@ import { Context } from '../utils/context';
 
 const readPromise = util.promisify(read);
 
-export const aliases = ['download', 'get'];
-export const summary = 'Downloads a GB video and/or its associated data.';
+export const aliases = ['download', 'save', 'get'];
+export const summary = 'Downloads GB videos and/or associated data.';
 
 export const parser = new Parser({
   title: 'Download',
-  description: 'Downloads a GB video and/or its associated data.',
+  description: `
+  Download and save Giant Bomb show videos or their associated data
+  (image thumbnails, metadata, etc.).
+
+  Individual videos can be downloaded, or batches of videos up to an entire
+  show. Multiple forms are possible when specifying a batch, such as a season
+  ("--season 2014"), an episode range ("from --episode 4 to --episode 20"),
+  etc. Any video downloaded with this command must be organized into a show on
+  the Giant Bomb API (not every video is).
+
+  Downloaded files are stored in a templated file structure, with directory and
+  filenames being generated based on video metadata -- title, episode number,
+  etc. The output template must be specified; it has no default value and files
+  will not be saved unless an output path is provided.
+
+  As an example, try this command:
+
+  $ download --video "Makes Mario" --video-out "\\{name\\}"
+  `,
   aliases,
   synopsis: [
+    'download "Thirteen Deadly Sims" --out <template>',
     'download Endurance --season Shenmue --episode 4 --out <template>',
     'download "Quick Look" --video "nidhogg" --out <template>',
     'download "Game of the Year" from --season 2014 through --season 2015 --out <template>',
@@ -63,33 +82,186 @@ export const parser = new Parser({
     sharedOptions.commit
   ],
   misc: [
+    { header: 'File Output',
+      content:`Downloaded output filenames are not automatically generated; to save a particular type of file (e.g. videos, episode thumbnails, etc.) you must specify a filename or name template. The appropriate file extension will be added for each file type.
+
+      To disable downloads for a particular type of file, use "none" as the filename; for instance, "--out my_video --metadata-out none" will save a video and image thumbnail to "my_video.mp4"  and "my_video.png", respectively, but will not save episode metadata.`
+    },
     {
-      header: 'Download anchors: "from", "after", "to", "through"',
-      content: `
-      Use content anchors to download batches of videos (or images, etc.)
-      from the specified show. Anchors identify a particular episode
-      (or season) of the show; the batch will begin or end with that episode.
+      header: 'File Output Options',
+      content: [
+        { name: '-o, --out', summary:'An output path for the episode files' },
+        {
+          name: '-V, --video-out',
+          summary:`An output path to use for the video file; ".mp4" will be appended. Use "none" to disable video downloads. If omitted, the value of --out is used.`
+        },
+        {
+          name: '-I, --image-out',
+          summary:`An output path to use for the episode's image thumbnail; ".png" or ".jpg" will be appended. Use "none" to disable thumbnail downloads. If omitted, the value of --out is used.`
+        },
+        {
+          name: '-M, --metadata-out',
+          summary:`An output path to use for episode's metadata; ".json" will be appended. Use "none" to disable metadata downloads. If omitted, the value of --out is used.`
+        },
+        { name: '--show-out', summary:'An output path for the show (not episode) files' },
+        {
+          name: '--show-image-out',
+          summary:`An output path to use for the show's image thumbnail; ".png" or ".jpg" will be appended. Use "none" to disable thumbnail downloads. If omitted, the value of --show-out is used.`
+        },
+        {
+          name: '--show-metadata-out',
+          summary:`An output path to use for the show's metadata; ".json" will be appended. Use "none" to disable metadata downloads. If omitted, the value of --show-out is used.`
+        }
+      ]
+    },
+    {
+      header: 'File Output Examples',
+      content: [
+        {
+          example: '--out my_episode --metadata-out none',
+          desc: `Save the video and thumbnail to "my_episode.mp4" and "my_episode.png", respectively; do not download the video metadata.`
+        },
+        {
+          example: '--out extras/my_episode --video-out my_episode',
+          desc: `Save the video to "my_episode.mp4"; download the image thumbnail and metadata, saving them in a directory called "extras" using the names "my_episode.png" and "my_episode.json". The "extras" directory will be created if necessary.`
+        },
+        {
+          example: '--show-out output/show --out output/video --image-out none',
+          desc: `Download metadata and a thumbnail image for the show, naming them "show.json" and "show.png". Also download the episode's video and metadata (but not image thumbnail), naming them "video.mp4" and "video.json". All these files will go in a directory named "output", which will be created if necessary.
+          `
+        }
+      ]
+    },
+    {
+      header: 'File Templates',
+      content: `Use templates to automatically generate filenames for the downloaded content based on show and episode metadata. This is especially useful when downloading multiple episodes of a show so the downloaded files don't overwrite each other.
 
-      For example,
+      Template names can be included as part of any file output argument ('--out', '--video-out', etc.) and will be automatically replaced with the appropriate value based on the show or video being saved.
 
-      'download "Game of the Year" from --season 2014 through --season 2016'
-
-      will download all episodes of the "Game of the Year" show in the 2014,
-      2015, and 2016 seasons.
-
-      'download "Quick Look" to --video "Balan Wonderworld"'
-
-      will download all Quick Look episodes up to -- but not including --
-      Balan Wonderworld.
-
-      "from" and "after" indicate the start of a batch, with "from" including
-      the episode (or season) specified.
-
-      "to" and "through" indicate the end of a batch, with "through" including
-      the episode (or season) specified.
-
-      For more information, use "download <show> from help".
+      Template values are specified in curly braces, e.g. "\\{name\\}", as part of the file output path; for example, in  "--out output/\\{guid\\}", the video's unique GUID will be substituted for "\\{guid\\}", with output files like "output/2300-219.mp4", "output/2300-8648.json", etc.
       `
+    },
+    {
+      header: 'File Template Examples',
+      content: [
+        {
+          example: '--out "\\{show\\}/\\{guid\\} - \\{name\\}"',
+          desc: `
+          Save episode files (video, image, metadata) in a directory named after the show, using a filename based on the video's GUID and episode title.
+
+          e.g. will save videos to:
+
+          | Endurance Run/
+          |   2300-219 - Endurance Run- Persona 4 - Part 01.mp4
+          |   2300-220 - Endurance Run- Persona 4 - Part 02.mp4
+          |   2300-222 - Endurance Run- Persona 4 - Part 03.mp4
+          |   ...
+          | VinnyVania/
+          |   2300-8648 - VinnyVania- Castlevania - Part 01
+          |   2300-8697 - VinnyVania- Castlevania - Part 02
+          |   2300-8827 - VinnyVania- Castlevania - Part 03
+          |   ...
+          `
+        },
+        {
+          example: '--out "\\{show\\}/Season \\{s\\} - \\{season_name\\}/S\\{s\\}E\\{e\\}"',
+          desc: `
+          Save episode files (video, image, metadata) in a directory named after the season (inside the show's directory), using a filename based the episode's placement in the season.
+
+          e.g. will save videos to:
+
+          | Endurance Run/
+          |   Season 01 - Shin Megami Tensei: Persona 4/
+          |     S01E01.mp4
+          |     S01E02.mp4
+          |     S01E03.mp4
+          |     ...
+          |   Season 02 - The Matrix Online/
+          |     S02E01.mp4
+          |     ...
+          |   ...
+          | VinnyVania/
+          |   Season 01 - Castlevania/
+          |     S01E01.mp4
+          |     S01E02.mp4
+          |     S01E03.mp4
+          |     ...
+          |   Season 02 - Castlevania II- Simon's Quest/
+          |     S02E01.mp4
+          |     ...
+          |   ...
+          `
+        }
+      ]
+    },
+    {
+      header: 'File Template Values',
+      content: [
+        { name: '\\{name\\}', summary: 'The name of the video' },
+        { name: '\\{game\\}', summary: 'The first game associated with the video' },
+        { name: '\\{time\\}', summary: 'The date and time the video was published' },
+        { name: '\\{date\\}', summary: 'The date the video was published' },
+        { name: '\\{year\\}', summary: 'The year the video was published' },
+        { name: '\\{episode\\}', summary: 'Episode number (1, 2, etc.) of this video within the season' },
+        { name: '\\{show_episode\\}', summary: 'Episode number (1, 2, etc.) of this video within the show' },
+        { name: '\\{episode_count\\}', summary: 'The total number of episodes in the season' },
+        { name: '\\{show_episode_count\\}', summary: 'The total number of episodes in the show' },
+        { name: '\\{guid\\}', summary: `The video's GUID` },
+        { name: '\\{id\\}', summary: `The video's ID` },
+        { name: '\\{show\\}', summary: `The show title` },
+        { name: '\\{show_guid\\}', summary: `The show's GUID` },
+        { name: '\\{show_id\\}', summary: `The show's ID` },
+        { name: '\\{season\\}', summary: `The video's season number (1, 2, etc.)` },
+        { name: '\\{season_name\\}', summary: `The name of the video's season (2014, "Castlevania", etc.)` },
+        { name: '\\{season_count\\}', summary: `The total number of seasons in the show` },
+        { name: '\\{quality\\}', summary: `The downloaded file quality; one of ["hd", "high", "low", "info"]` }
+      ]
+    },
+    {
+      header: 'Content Anchors',
+      content: `
+      Use content anchors to specify batches of videos (or images, etc.) from the specified show. Anchors identify a particular episode (or season) of the show; the batch will begin or end with that episode.
+
+      Content anchors begin with "from", "to", "after" or "through", and should be included as part of the download command as if specifying an episode or season.
+
+      For more information, try "download from help"
+      `
+    },
+    {
+      header: 'Content Anchor Types',
+      content: [
+        { name: 'from {underline options}', summary:`Include episodes after, and including, the video or season specified.` },
+        { name: 'after {underline options}', summary:`Include episodes after (but not including) the video or season specified.` },
+        { name: 'through {underline options}', summary:`Include episodes up to, and including, the video or season specified.` },
+        { name: 'to {underline options}', summary:`Include episodes up to (but not including) the video or season specified.` },
+      ]
+    },
+    {
+      header: 'Content Anchor Options',
+      content: [
+        { name: '-v, --video {underline text}', summary:`Text specifying a video, such as its name` },
+        { name: '-e, --episode {underline number}', summary:`The episode number, with 1 being the first` },
+        { name: '-s, --season {underline text or number}', summary:`The season number, with 1 being the first (or season name, like "2014")` },
+        { name: '{underline text}', summary:`A season / episode identifier, e.g. "S02E17".` },
+      ]
+    },
+    {
+      header:  'Content Anchor Examples',
+      content: [
+        {
+          example: 'download "Game of the Year" from --season 2014 through --season 2016',
+          desc: `Download all episodes of the "Game of the Year" show in the 2014, 2015, and 2016 seasons.`
+        },
+        {
+          example: 'download "Quick Look" to --video "Balan Wonderworld"',
+          desc: `Download all Quick Look episodes up to -- but not including --
+          Balan Wonderworld.`
+        },
+        {
+          example: 'download Endurance --season Shenmue from --episode 10 to --episode 20',
+          desc: `Download the 10th, 11th, ... 19th episodes of the "Shenmue" season of Endurance Run`
+        }
+      ]
     }
   ]
 });

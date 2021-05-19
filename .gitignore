@@ -6,7 +6,7 @@ node_modules/
 .env.test
 
 # cache
-gb-tool.cache.json
+gb-show.cache.json
 
 # output
 output/

@@ -11,18 +11,24 @@ import { shows, VideoShowMatch } from '../utils/shows';
 // types
 import { Context } from '../utils/context';
 
-export const aliases = ['shows', 'channels', 'find', 'search'];
+export const aliases = ['list', 'shows', 'find', 'search'];
 export const summary = 'Load and display GB show names';
 
 export const parser = new Parser({
-  title: 'Shows',
-  description: 'Loads and displays all GB show names, or those matching an optional search term',
+  title: 'List',
+  description: `
+  Load and print the Giant Bomb show names. If a search term is provided, only
+  shows related to that term will be displayed, in the order of significance;
+  for example shows with that term in their title, then shows with videos
+  related to that term, etc.
+  `,
   aliases,
   synopsis: [
-    'shows',
-    'shows Matrix',
-    'shows "Endurance Run"',
-    'shows [query]'
+    'list',
+    'list Matrix',
+    'list "Endurance Run"',
+    'list Ben',
+    'list [query]'
   ],
   options: [
     { ...sharedOptions.show, defaultOption:true },
