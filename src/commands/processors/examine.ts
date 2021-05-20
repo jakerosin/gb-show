@@ -12,11 +12,11 @@ import { catalog } from '../utils/catalog';
 // types
 import { Context } from '../utils/context';
 
-export const aliases = ['seasons', 'examine', 'episodes'];
+export const aliases = ['examine', 'seasons', 'episodes'];
 export const summary = 'Load and display season information about the indicated show';
 
 export const parser = new Parser({
-  title: 'Seasons',
+  title: 'Examine',
   description: `
   Generate and print a season structure for the indicated show, which will be
   based on either year of release or the game associated with each episode.
@@ -31,9 +31,9 @@ export const parser = new Parser({
   `,
   aliases,
   synopsis: [
-    'seasons "Quick Look"',
-    'seasons Endurance',
-    'seasons playdate --season-type games'
+    'examine "Quick Look"',
+    'examine Endurance',
+    'examine playdate --season-type games'
   ],
   options: [
     { ...sharedOptions.show, defaultOption:true },

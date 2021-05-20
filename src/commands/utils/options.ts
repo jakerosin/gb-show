@@ -22,7 +22,7 @@ export default {
     description: "Show season; either its name, or number (1, 2, ...)"
   },
   season_type: {
-    name: 'season-type', alias: 't', type: String,
+    name: 'season-type', alias: 't', type: String, defaultValue: DEFAULT.season_type,
     typeLabel: '{underline "games"/"years"}',
     description: "Season type: one of ['games', 'years']. If omitted, will guess."
   },

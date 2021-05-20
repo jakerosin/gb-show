@@ -639,7 +639,8 @@ export async function process(argv: string[], context: Context): Promise<number>
     }
     if (savingVideo || savingEpisodes) {
       const target = targetVideo || (firstIncluded && firstIncluded.video);
-      logger.print(`Will ${action} data for video "${target ? target.name : 'Unknown'}" to template-based files, saving (e.g.)`);
+      const targetStr = includedIDs.size > 1 ? `${includedIDs.size} videos` : `video "${target ? target.name : 'Unknown'}"`;
+      logger.print(`Will ${action} data for ${targetStr} to template-based files, saving (e.g.)`);
       if (videoFilenameExample) logger.print(`  ${quality} quality video to "${videoFilenameExample}.mp4"`);
       if (imageFilenameExample) logger.print(`  ${quality} quality image to "${imageFilenameExample}.png"`);
       if (dataFilenameExample) logger.print(`  video metadata to "${dataFilenameExample}.json"`);

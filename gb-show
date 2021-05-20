@@ -1,14 +1,18 @@
 #!/bin/bash
 
+# Install local dependencies. Using `npx` instead causes
+# typing errors when executing ts-node.
 if [ ! -d "node_modules" ]; then
   echo "Installing dependencies"
   npm install
   echo "Finished; running gb-show"
 fi
 
+# This optional file should specify environment variables for
+# running the gb-show tool; see .env.example
 FILE=.env
 if test -f "$FILE"; then
-  source "$FILE" && node_modules/.bin/ts-node src/index.ts $@
+  source "$FILE" && node_modules/.bin/ts-node src/index.ts "$@"
 else
-  node_modules/.bin/ts-node src/index.ts $@
+  node_modules/.bin/ts-node src/index.ts "$@"
 fi

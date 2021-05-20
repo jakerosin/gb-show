@@ -41,7 +41,7 @@ export const DEFAULT = {
   copy_year: stringToBoolean(process.env.GBSHOW_COPY_YEAR),
 
   // command options
-  season_type: process.env.GB_SHOW_SEASON_TYPE,
+  season_type: process.env.GBSHOW_SEASON_TYPE,
   quality: process.env.GBSHOW_QUALITY,
   out: process.env.GBSHOW_OUT,
   video_out: process.env.GBSHOW_VIDEO_OUT,
