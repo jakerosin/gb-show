@@ -26,6 +26,14 @@ export default {
     typeLabel: '{underline "games"/"years"}',
     description: "Season type: one of ['games', 'years']. If omitted, will guess."
   },
+  premium: {
+    name: 'premium', type: Boolean,
+    description: "Limit search / dowload to only premium videos or shows"
+  },
+  free: {
+    name: 'free', type: Boolean,
+    description: "Limit search / dowload to only free videos or shows"
+  },
   copy_year: {
     name: 'copy-year', alias  : 'y', type: Boolean, defaultValue: DEFAULT.copy_year,
     description: 'Naively copy publication year for Season ordering (do not correct for videos released in early January)'

@@ -18,6 +18,7 @@ import Logger from '../utils/logger';
 export { Video } from './calls/video';
 export { VideoShow } from './calls/video-show';
 export { ImageResult, ListResult } from './base/result';
+export { ItemFilter, ListFilter, ListFieldFilter } from './base/filter';
 
 export function setApiKey(api_key: string): void {
   Shared.config.api_key = api_key;

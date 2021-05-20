@@ -1,6 +1,6 @@
 'use strict';
 
-import { api, Video, VideoShow } from '../../api';
+import { api, Video, VideoShow, ListFieldFilter } from '../../api';
 import { shows } from './shows';
 
 import { Context } from './context';
@@ -13,6 +13,12 @@ function onlyNonNullUnique(value, index, self) {
   return value !== void 0 && self.indexOf(value) === index;
 }
 
+export interface VideoMatchOpts {
+  query: string|number;
+  show?: VideoShow|void;
+  filter?: ListFieldFilter|ListFieldFilter[];
+}
+
 export type VideoMatchType = 'id'|'name'|'association';
 
 export interface VideoMatch {
@@ -20,20 +26,43 @@ export interface VideoMatch {
   matchType: VideoMatchType;
 };
 
+function checkFilter(obj: any, filter: ListFieldFilter[]): boolean {
+  for (const f of filter) {
+    let ok = true;
+    const objValue = obj[f.field];
+    const start = f['start'];
+    const end = f['end'];
+    const value = f['value'];
+    if (start && end) {
+      const d = new Date(`${objValue}Z`);
+      ok = start <= d && d <= end;
+    } else {
+      // TODO more sensible comparisons for field types?
+      const regex = RegExp(`${value}`, 'ig');
+      ok = objValue === value || (objValue === void 0 && value === void 0) || !!`${objValue}`.match(regex);
+    }
+    if (!ok) return false;
+  }
+  return true;
+}
+
 /**
  * Finds (if possible) the indicated show based on its id, guid,
  * or (partial) name. "Name" is an ambiguous match; the first such match
  * is provided, although the ambiguity is logged.
  */
-export async function find(ident: string|number, show: VideoShow|void, context: Context): Promise<VideoMatch|void> {
+export async function find(opts: VideoMatchOpts, context: Context): Promise<VideoMatch|void> {
   const { logger } = context;
   const tag = `commands.utils.videos.find`;
 
+  const ident = opts.query;
+  const { show } = opts;
   const showFilter = show ? { field:'video_show', value:show.id } : null;
+  const optsFilter = [].concat(opts.filter || []);
 
   // Treat as an ID
   if (api.isID(ident)) {
-    const filter = [{ field:'id', value:ident }];
+    const filter = [...optsFilter, { field:'id', value:ident }];
     if (showFilter) filter.push(showFilter);
     const data = await api.video.list({ filter });
     if (data.results && data.results.length) {
@@ -53,8 +82,12 @@ export async function find(ident: string|number, show: VideoShow|void, context: 
     try {
       const video = await api.video.get(`${ident}`.trim());
       if (show && (!video.video_show || video.video_show.id !== show.id)) throw new Error(`Wrong show`);
-      if (logger) logger.debug(`${tag}: ident ${ident} is a guid; found ${video.name} (${video.guid})`);
-      return { video, matchType:'id' };
+      if (checkFilter(video, optsFilter)) {
+        if (logger) logger.debug(`${tag}: ident ${ident} is a guid; found ${video.name} (${video.guid})`);
+        return { video, matchType:'id' };
+      } else {
+        if (logger) logger.debug(`${tag}: ident ${ident} is a guid; found ${video.name} (${video.guid}) but does not match filter ${JSON.stringify(optsFilter)}`);
+      }
     } catch (err) {
       if (logger) logger.debug(`${tag}: ident ${ident} was not found as a GUID`);
     }
@@ -66,7 +99,7 @@ export async function find(ident: string|number, show: VideoShow|void, context: 
     // download all episodes; see if one fits
     const { results } = await api.video.all({
       fields: ['id', 'guid', 'associations', 'name', 'publish_date'],
-      filter: { field:'video_show', value:show.id },
+      filter: [...optsFilter, { field:'video_show', value:show.id }],
       sort: { field:'publish_date', direction:'asc' }
     });
     const regex = RegExp(`${ident}`, 'ig');
@@ -92,20 +125,20 @@ export async function find(ident: string|number, show: VideoShow|void, context: 
     for (const matchType of searchTypes) {
       const videosData = matchType === 'name'
         ? await api.video.list({
-          filter:{ field:'name', value:`${ident}` },
+          filter:[...optsFilter, { field:'name', value:`${ident}` }],
           sort: { field:'publish_date', direction:'asc' },
           limit:5
         })
         : await api.video.search(`${ident}`, { limit:5 });
       if (videosData.results && videosData.results.length) {
-        const videos = videosData.results;
+        const videos = videosData.results.filter(a => checkFilter(a, optsFilter));
         if (logger && videos.length > 1) {
           logger.warn(`${tag}: ident ${ident} matches at least ${videos.length} ${matchType}s`);
           for (let i = 0; i < videos.length; i++) {
             logger.warn(`${tag}:   ${videos[i].name}`)
           }
         }
-        return { video:videos[0], matchType };
+        if (videos.length) return { video:videos[0], matchType };
       }
     }
   }
@@ -116,18 +149,21 @@ export async function find(ident: string|number, show: VideoShow|void, context: 
  * or (partial) name. Matches are ordered based on strength, with video-based
  * associations being weakest.
  */
-export async function list(ident: string|number, show: VideoShow|null, context: Context): Promise<VideoMatch[]> {
+export async function list(opts: VideoMatchOpts, context: Context): Promise<VideoMatch[]> {
   const { logger } = context;
   const tag = `commands.utils.videos.list`;
 
   const videoIDs = new Set<number>();
   const videos: VideoMatch[] = [];
 
+  const ident = opts.query;
+  const { show } = opts;
   const showFilter = show ? { field:'video_show', value:show.id } : null;
+  const optsFilter = [].concat(opts.filter || []);
 
   // Treat as an ID
   if (api.isID(ident)) {
-    const filter = [{ field:'id', value:ident }];
+    const filter = [...optsFilter, { field:'id', value:ident }];
     if (showFilter) filter.push(showFilter);
     const data = await api.video.list({ filter });
     if (data.results && data.results.length) {
@@ -145,10 +181,14 @@ export async function list(ident: string|number, show: VideoShow|null, context: 
     try {
       const video = await api.video.get(`${ident}`.trim());
       if (show && (!video.video_show || video.video_show.id !== show.id)) throw new Error(`Wrong show`);
-      if (logger) logger.debug(`${tag}: ident ${ident} is a guid; found ${video.name} (${video.guid})`);
-      if (!videoIDs.has(video.id)) {
-        videoIDs.add(video.id);
-        videos.push({ video, matchType:'id' });
+      if (checkFilter(video, optsFilter)) {
+        if (logger) logger.debug(`${tag}: ident ${ident} is a guid; found ${video.name} (${video.guid})`);
+        if (!videoIDs.has(video.id)) {
+          videoIDs.add(video.id);
+          videos.push({ video, matchType:'id' });
+        }
+      } else {
+        if (logger) logger.debug(`${tag}: ident ${ident} is a guid; found ${video.name} (${video.guid}) but does not match filter ${JSON.stringify(optsFilter)}`);
       }
     } catch (err) {
       if (logger) logger.debug(`${tag}: ident ${ident} was not found as a GUID`);
@@ -162,7 +202,7 @@ export async function list(ident: string|number, show: VideoShow|null, context: 
     // download all episodes; see if one fits
     const { results } = await api.video.all({
       fields: ['id', 'guid', 'associations', 'name', 'publish_date'],
-      filter: { field:'video_show', value:show.id },
+      filter: [...optsFilter, { field:'video_show', value:show.id }],
       sort: { field:'publish_date', direction:'asc' }
     });
     const regex = RegExp(`${ident}`, 'ig');
@@ -182,12 +222,12 @@ export async function list(ident: string|number, show: VideoShow|null, context: 
     // look for videos with this in their name or as an association
     for (const matchType of searchTypes) {
       const videosData = matchType === 'name'
-        ? await api.video.list({ filter:{ field:'name', value:`${ident}` }, limit:5 })
+        ? await api.video.list({ filter:[...optsFilter, { field:'name', value:`${ident}` }], limit:5 })
         : await api.video.search(`${ident}`, { limit:5 });
       if (videosData.results && videosData.results.length) {
-        const matches = videosData.results;
+        const matches = videosData.results.filter(a => checkFilter(a, optsFilter));
         if (logger && videosData.number_of_page_results < videosData.number_of_total_results) {
-          logger.warn(`${tag}: ident ${ident} matches at least ${matches.length} ${matchType}s`);
+          logger.warn(`${tag}: ident ${ident} matches at least ${videosData.number_of_total_results} ${matchType}s`);
           for (let i = 0; i < matches.length; i++) {
             logger.warn(`${tag}:   ${matches[i].name}`)
           }

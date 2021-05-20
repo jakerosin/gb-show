@@ -5,7 +5,7 @@ import Parser from '../utils/parser';
 import sharedOptions from '../utils/options';
 import { ERROR } from '../utils/context';
 
-import { api, VideoShow, ListResult } from '../../api';
+import { api, VideoShow, ListResult, ListFieldFilter } from '../../api';
 import { shows } from '../utils/shows';
 import { catalog } from '../utils/catalog';
 
@@ -39,6 +39,8 @@ export const parser = new Parser({
     { ...sharedOptions.show, defaultOption:true },
     sharedOptions.season_type,
     sharedOptions.details,
+    sharedOptions.premium,
+    sharedOptions.free
   ]
 });
 
@@ -48,7 +50,7 @@ export async function process(argv: string[], context: Context): Promise<number>
   const options =  parser.process(argv, logger);
   if (!options) return ERROR.NONE;
 
-  const { show, details } = options;
+  const { show, details, premium, free } = options;
 
   if (!show) {
     logger.print(parser.help());
@@ -56,7 +58,15 @@ export async function process(argv: string[], context: Context): Promise<number>
     throw new Error(`seasons: must specify a show`);
   }
 
-  const matches = await shows.list(show, context);
+  if (premium && free) {
+    throw new Error(`Can't combine --premium and --free; nothing will match`);
+  }
+
+  const filter: ListFieldFilter[] = [];
+  if (premium) filter.push({ field:'premium', value:'true' });
+  if (free) filter.push({ field:'premium', value:'false' });
+
+  const matches = await shows.list({ query:show, filter }, context);
   if (details && matches.length > 1) {
     logger.print(`Found ${matches.length} possible matches for "${show}":`);
     matches.forEach((match, index) => {

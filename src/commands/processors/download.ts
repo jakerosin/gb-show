@@ -10,7 +10,7 @@ import sharedOptions from '../utils/options';
 import { ERROR } from '../utils/context';
 
 // utilities
-import { api, Video, VideoShow, ListResult } from '../../api';
+import { api, Video, VideoShow, ListResult, ListFieldFilter } from '../../api';
 import { save, SaveResult } from '../utils/save';
 import { shows } from '../utils/shows';
 import { catalog, Catalog, CatalogEpisodeReference } from '../utils/catalog';
@@ -66,6 +66,8 @@ export const parser = new Parser({
     sharedOptions.episode,
     sharedOptions.season,
     sharedOptions.season_type,
+    sharedOptions.premium,
+    sharedOptions.free,
     sharedOptions.show_only,
     sharedOptions.quality,
     sharedOptions.out,
@@ -326,7 +328,7 @@ export async function process(argv: string[], context: Context): Promise<number>
   const options =  parser.process(processArgv, logger);
   if (!options) return ERROR.NONE;
 
-  const { show, video, episode, season, out, replace, details, commit } = options;
+  const { show, video, episode, season, premium, free, out, replace, details, commit } = options;
   const season_type = options['season-type'];
   const video_out = options['video-out'];
   const data_out = options['metadata-out'];
@@ -357,6 +359,10 @@ export async function process(argv: string[], context: Context): Promise<number>
     throw new Error(`Cannot specify both --video <identifier> and --season <season>; omit "--season" or use "--episode <number>" instead`)
   }
 
+  if (premium && free) {
+    throw new Error(`Can't combine --premium and --free; nothing will match`);
+  }
+
   if (anchorCommands.length && ((video !== void 0) || (episode !== void 0))) {
     throw new Error(`Cannot combine single-episode downloads with [from, after, to, through] anchors`);
   }
@@ -377,6 +383,10 @@ export async function process(argv: string[], context: Context): Promise<number>
     logger.warn(`Warning: using --replace and --megabyte-limit together makes it harder to expand existing collections.`)
   }
 
+  const filter: ListFieldFilter[] = [];
+  if (premium) filter.push({ field:'premium', value:'true' });
+  if (free) filter.push({ field:'premium', value:'false' });
+
   // Note: anchor-free downloads are equivalent to "from X" "through X" for the
   // same single element (episode or season). Full-show downloads are equivalent
   // to "from 1" "through <max>".
@@ -387,7 +397,7 @@ export async function process(argv: string[], context: Context): Promise<number>
 
   // query for the show if possible
   if (show) {
-    const match = await shows.find(show, context);
+    const match = await shows.find({ query:show, filter }, context);
     if (match) {
       targetShow = match.show;
       targetCatalog = await catalog.create(targetShow, context);
@@ -399,14 +409,14 @@ export async function process(argv: string[], context: Context): Promise<number>
   }
 
   if (video) {
-    const match = await videos.find(video, targetShow, context);
+    const match = await videos.find({ query:video, show:targetShow, filter}, context);
     if (match) {
       targetVideo = match.video;
       logger.info(`Found ${match.video.name} by ${match.matchType}`);
       if (!targetShow) {
         const showID = targetVideo.video_show ? targetVideo.video_show.id : null;
         if (showID) {
-          const showMatch = await shows.find(showID, context);
+          const showMatch = await shows.find({ query:showID }, context);
           if (showMatch) {
             targetShow = showMatch.show;
           } else {

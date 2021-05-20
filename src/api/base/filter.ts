@@ -25,7 +25,7 @@ interface ListDateFilter {
   end: Date;
 }
 
-type ListFieldFilter = ListValuesFilter|ListDateFilter;
+export type ListFieldFilter = ListValuesFilter|ListDateFilter;
 
 export interface ListFilter extends ItemFilter {
   limit?: number;

@@ -60,6 +60,8 @@ In most cases, rather than listing configuration as command-line options, the sa
 | Option               | Type   | Required | ENV variable             | Description  |
 | -------------------- | ------ | -------- | ------------------------ | -------------------------------------------------------------------------------------------- |
 | [text], --show, -s   | String | N        |                          | Used to find a matching show -- title, episode name, game                                    |
+| --premium            |        | N        |                          | Only consider premium shows                                                                  |
+| --free               |        | N        |                          | Only consider free (non-premium) shows                                                       |
 
 e.g. `./gb-show list "Mario"`
 
@@ -68,6 +70,8 @@ e.g. `./gb-show list "Mario"`
 | Option               | Type   | Required | ENV variable             | Description  |
 | -------------------- | ------ | -------- | ------------------------ | -------------------------------------------------------------------------------------------- |
 | [text], --show, -s   | String | Y        |                          | Used to find a matching show -- title, episode name, game                                    |
+| --premium            |        | N        |                          | Only consider premium shows                                                                  |
+| --free               |        | N        |                          | Only consider free (non-premium) shows                                                       |
 | --season-type, -t    | String | N        | GBSHOW_SEASON_TYPE       | Field used to divide the show's seasons: [years, games]. Inferred from show by default.      |
 | --details, -d        |        | N        |                          | Display extra information (episode titles)                                                   |
 
@@ -79,8 +83,10 @@ e.g. `./gb-show list "Mario"`
 
 | Option               | Type   | Required | ENV variable             | Description  |
 | -------------------- | ------ | -------- | ------------------------ | -------------------------------------------------------------------------------------------- |
-| <text>, --show, -s   | String | Y*       |                          | Used to find a matching show -- title, episode name, game.                                   |
+| [text], --show, -s   | String | Y*       |                          | Used to find a matching show -- title, episode name, game.                                   |
 | --video, -v          | String | Y*       |                          | Used to find a matching video -- title, episode name, game.                                  |
+| --premium            |        | N        |                          | Only consider premium shows and videos                                                       |
+| --free               |        | N        |                          | Only consider free (non-premium) shows and videos                                            |
 | --episode, -e        | Number | N        |                          | One-based index for the video. If `--season`, counts within that season; otherwise within the show. Earliest episode is `1`. |
 | --season, -s         | String/Number | N |                          | The season (one-based index, or name) for the videos.                                        |
 | [from, after, through, to] | * | N       |                          | Specify a range of episodes to download (may be combined with other ranges)                  |
@@ -120,7 +126,7 @@ More complex ranges can be specified using anchors: the words [from, after, thro
 
 | Option               | Type   | Required  | ENV variable             | Description  |
 | -------------------- | ------ | --------- | ------------------------ | -------------------------------------------------------------------------------------------- |
-| <text>               | String | Y*        |                          | Season/episode number formatted like S02, E17, or S02E17.                                    |
+| [text]               | String | Y*        |                          | Season/episode number formatted like S02, E17, or S02E17.                                    |
 | --video, -v          | String | Y*        |                          | Used to find a matching video -- title, episode name, game.                                  |
 | --episode, -e        | Number | Y*        |                          | One-based index for the video. If `--season`, counts within that season; otherwise within the show. Earliest episode is `1`. |
 | --season, -s         | String/Number | Y* |                          | The season (one-based index, or name) for the videos.                                        |
@@ -143,7 +149,7 @@ Output filenames and locations _must_ be manually specified, or no files will be
 
 Template values, specified in curly braces (e.g. "{name}"), will be replaced with video-specific details when writing a particular file. For instance,
 
-./gb-show download --video "Quick Look Nidhogg" --video-out "output/{show}/{year} {game}" will write to a file named "output/Quick Look/2014 Nidhogg.mp4".
+`./gb-show download --video "Quick Look Nidhogg" --video-out "output/{show}/{year} {game}"` will write to a file named `output/Quick Look/2014 Nidhogg.mp4`.
 
 ### Output Template Values
 
@@ -181,8 +187,8 @@ Always stay in compliance with the [API usage guidelines](https://www.giantbomb.
 
 ## Alternatives
 
-`gb-show` is intended for downloading and organizing medium to large batches of Giant Bomb videos, for personal archival or viewing through programs like Plex. Although it can be used to download just a few of your favorite videos or the latest releases for the week, this isn't its primary purpose.
+`gb-show` is intended for downloading and organizing medium to large batches of Giant Bomb videos, for personal archival or viewing through programs like Plex. Although it can be used to quickly fetch just a few of your favorite videos or the latest releases for the week, this isn't its primary purpose.
 
 If `gb-show` seems overly complicated, or too specific in functionality for you, try [gb-dl](https://github.com/lightpohl/gb-dl), which has a simpler interface designed around downloading individual videos rather than show or season batches.
 
-You could also download them directly from the [Giant Bomb](https://www.giantbomb.com) website!
+You could also download videos directly from the [Giant Bomb](https://www.giantbomb.com) website!

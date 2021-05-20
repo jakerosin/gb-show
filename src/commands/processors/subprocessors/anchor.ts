@@ -143,7 +143,7 @@ export async function find(opts: AnchorOpts, context: Context): Promise<AnchorRe
     episodeCatalogReference = await catalog.findEpisode(opts, context);
   } else if (video !== void 0) {
     const videoReal: string = video as string;  // for typescript
-    const match = await videos.find(videoReal, show, context);
+    const match = await videos.find({ query:videoReal, show }, context);
     if (!match) {
       throw new Error(`No videos found for "${video}"`);
     }
