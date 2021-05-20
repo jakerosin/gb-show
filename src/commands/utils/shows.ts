@@ -9,7 +9,7 @@ function onlyUnique(value, index, self) {
 }
 
 function onlyNonNullUnique(value, index, self) {
-  return value !== void 0 && self.indexOf(value) === index;
+  return !!value && self.indexOf(value) === index;
 }
 
 export type VideoShowMatchType = 'id'|'title'|'video'|'association';
@@ -112,20 +112,20 @@ export async function find(opts: VideoShowMatchOpts, context: Context): Promise<
   // look for videos with this in their name or as an association
   const searchTypes: VideoShowMatchType[] = ['video', 'association'];
   for (const matchType of searchTypes) {
-    const fields = ['name', 'video_show', 'id'];
+    const fields = ['name', 'video_show', 'id', 'premium'];
     const videosData = matchType === 'video'
       ? await api.video.list({ filter:[...filter, { field:'name', value:`${ident}` }], fields })
       : await api.video.search(`${ident}`, { fields });
     if (videosData.results && videosData.results.length) {
       const titleForId: any = {};
       const show_ids = videosData.results.sort((a, b) => a.id - b.id)
+        .filter(a => checkFilter(a, filter))
         .map(a => {
           if (a.video_show) {
             titleForId[a.video_show.id] =  a.video_show.title;
             return a.video_show.id;
           }
         })
-        .filter(a => checkFilter(a, filter))
         .filter(onlyNonNullUnique);
 
       if (logger) {
@@ -140,14 +140,16 @@ export async function find(opts: VideoShowMatchOpts, context: Context): Promise<
         }
       }
 
-      const showData = await api.videoShow.list({ filter:{ field:'id', value:show_ids[0] } });
-      if (data.results && data.results.length) {
-        const show = showData.results[0];
-        if (logger) logger.debug(`${tag}: ident ${ident} found as ${matchType}; belongs to ${show.title} (${show.guid})`);
-        return { show: show as VideoShow, matchType }
-      } else {
-        if (logger) logger.error(`${tag}: ident ${ident} found as ${matchType}, but couldn't retrieve video`);
-        return null;
+      if (show_ids.length) {
+        const showData = await api.videoShow.list({ filter:{ field:'id', value:show_ids[0] } });
+        if (data.results && data.results.length) {
+          const show = showData.results[0];
+          if (logger) logger.debug(`${tag}: ident ${ident} found as ${matchType}; belongs to ${show.title} (${show.guid})`);
+          return { show: show as VideoShow, matchType }
+        } else {
+          if (logger) logger.error(`${tag}: ident ${ident} found as ${matchType}, but couldn't retrieve video`);
+          return null;
+        }
       }
     }
   }
@@ -230,13 +232,13 @@ export async function list(opts: VideoShowMatchOpts, context: Context): Promise<
     if (videosData.results && videosData.results.length) {
       const titleForId: any = {};
       const show_ids = videosData.results.sort((a, b) => a.id - b.id)
+        .filter(a => checkFilter(a, filter))
         .map(a => {
           if (a.video_show) {
             titleForId[a.video_show.id] =  a.video_show.title;
             return a.video_show.id;
           }
         })
-        .filter(a => checkFilter(a, filter))
         .filter(onlyNonNullUnique);
 
       if (logger && !showIDs.size && videosData.number_of_page_results < videosData.number_of_total_results) {

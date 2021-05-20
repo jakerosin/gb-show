@@ -400,7 +400,7 @@ export async function process(argv: string[], context: Context): Promise<number>
     const match = await shows.find({ query:show, filter }, context);
     if (match) {
       targetShow = match.show;
-      targetCatalog = await catalog.create(targetShow, context);
+      targetCatalog = await catalog.create({ show:targetShow, filter }, context);
       logger.info(`Found ${match.show.title} by ${match.matchType}`);
     } else {
       logger.in('red').print(`No shows found for "${show}"`);
@@ -428,7 +428,7 @@ export async function process(argv: string[], context: Context): Promise<number>
         }
       }
 
-      if (targetShow && !targetCatalog) targetCatalog = await catalog.create(targetShow, context);
+      if (targetShow && !targetCatalog) targetCatalog = await catalog.create({ show:targetShow, filter }, context);
       if (targetShow && targetCatalog) {
         const episodeNumber = targetCatalog.episodes.findIndex(a => a.id === match.video.id) + 1;
         const anchorOpts: AnchorOpts = {
@@ -449,7 +449,7 @@ export async function process(argv: string[], context: Context): Promise<number>
 
   if (season && episode === void 0) {
     if (!targetShow) throw new Error(`Must specify valid --show to identify a video by --season`);
-    if (!targetCatalog) targetCatalog = await catalog.create(targetShow, context);
+    if (!targetCatalog) targetCatalog = await catalog.create({ show:targetShow, filter }, context);
 
     const anchorOpts: AnchorOpts = {
       show: targetShow,
@@ -464,7 +464,7 @@ export async function process(argv: string[], context: Context): Promise<number>
 
   if (episode) {
     if (!targetShow) throw new Error(`Must specify valid --show to identify a video by --episode`);
-    if (!targetCatalog) targetCatalog = await catalog.create(targetShow, context);
+    if (!targetCatalog) targetCatalog = await catalog.create({ show:targetShow, filter }, context);
 
     const anchorOpts: AnchorOpts = {
       show: targetShow,

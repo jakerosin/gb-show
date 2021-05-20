@@ -10,7 +10,7 @@ function onlyUnique(value, index, self) {
 }
 
 function onlyNonNullUnique(value, index, self) {
-  return value !== void 0 && self.indexOf(value) === index;
+  return !!value && self.indexOf(value) === index;
 }
 
 export interface VideoMatchOpts {

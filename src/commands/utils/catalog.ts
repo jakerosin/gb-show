@@ -1,6 +1,6 @@
 'use strict';
 
-import { api, Video, VideoShow } from '../../api';
+import { api, Video, VideoShow, ListFieldFilter } from '../../api';
 
 import { Context } from './context';
 
@@ -20,11 +20,17 @@ export interface Catalog {
   preferredSeasons: CatalogSeasonType;
 }
 
+export interface CatalogCreateOpts {
+  show: VideoShow,
+  filter?: ListFieldFilter|ListFieldFilter[];
+}
+
 export interface CatalogSeasonReferenceOpts {
   show: VideoShow;
   season: number|string;
   catalog?: Catalog|void;
   seasonType?: CatalogSeasonType|void;
+  filter?: ListFieldFilter|ListFieldFilter[];
 }
 
 export interface CatalogEpisodeReferenceOpts {
@@ -33,6 +39,7 @@ export interface CatalogEpisodeReferenceOpts {
   catalog?: Catalog|void;
   season?: number|string|void;
   seasonType?: CatalogSeasonType|void;
+  filter?: ListFieldFilter|ListFieldFilter[];
 }
 
 export interface CatalogSeasonReference {
@@ -50,9 +57,12 @@ export interface CatalogEpisodeReference extends CatalogSeasonReference {
   showEpisodeNumber: number;
 }
 
-export async function create(show: VideoShow, context: Context): Promise<Catalog> {
+export async function create(opts: CatalogCreateOpts, context: Context): Promise<Catalog> {
+  const { show } = opts;
   const { logger, copy_year } = context;
   const tag = `commands.utils.catalog.create`;
+
+  const filter = [].concat(opts.filter || []);
 
   if (!show.id) {
     throw new Error(`${tag}: show must have 'id' field; instead ${show}`);
@@ -62,7 +72,7 @@ export async function create(show: VideoShow, context: Context): Promise<Catalog
   if (logger) logger.trace(`${tag}: retrieving all videos for show ${show.title} (${show.id})`);
   const videosData = await api.video.all({
     fields: ['id', 'guid', 'associations', 'name', 'publish_date'],
-    filter: { field:'video_show', value:show.id },
+    filter: [...filter, { field:'video_show', value:show.id }],
     sort: { field:'publish_date', direction:'asc' }
   });
   const results = videosData.results || [];
@@ -157,7 +167,7 @@ export async function findSeason(opts: CatalogSeasonReferenceOpts, context: Cont
   const tag = `commands.utils.catalog.findSeason`;
 
   const { show, season } = opts;
-  const catalog = opts.catalog || await create(show, context);
+  const catalog = opts.catalog || await create({ show, filter:opts.filter }, context);
   let seasonType = opts.seasonType || catalog.preferredSeasons;
   const origSeasonType = seasonType;
 
@@ -203,7 +213,7 @@ export async function findEpisode(opts: CatalogEpisodeReferenceOpts, context: Co
   const tag = `commands.utils.catalog.findEpisode`;
 
   const { episode, show, season } = opts;
-  const catalog = opts.catalog || await create(show, context);
+  const catalog = opts.catalog || await create({ show, filter:opts.filter }, context);
   let seasonType = opts.seasonType || catalog.preferredSeasons;
   const origSeasonType = seasonType;
 

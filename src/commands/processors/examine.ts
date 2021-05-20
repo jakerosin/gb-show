@@ -85,7 +85,7 @@ export async function process(argv: string[], context: Context): Promise<number>
   }
 
   const showDetails = matches[0].show;
-  const showCatalog = await catalog.create(showDetails, context);
+  const showCatalog = await catalog.create({ show:showDetails, filter }, context);
   const season_type = options['season-type'] || showCatalog.preferredSeasons;
   const seasons = showCatalog.seasons[season_type];
   const recommendedSeasons = showCatalog.seasons[showCatalog.preferredSeasons];
