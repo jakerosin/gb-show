@@ -88,30 +88,50 @@ async function downloadUrl(tag: string, url: string, opts: DownloadOpts, context
   await createContainerDirectory(tag, opts);
 
   // download
-  const dl = async (destination: string) => {
+  const dl = async (destination: string): Promise<number> => {
     if (logger) logger.debug(`${tag}: downloading ${url}`);
     const query = context.api_key ? `?api_key=${context.api_key}`: '';
     const report = logger && logger.would('info');
     const stream = download(url + query);
+    let progressStr = '';
+    let finished = false;
+    let expectedTotal = -1;
     stream.pipe(fsSync.createWriteStream(destination));
-    if (report) {
-      let progressStr = '';
-      stream.on('downloadProgress', progress => {
+    stream.on('downloadProgress', progress => {
+      if (report) {
         const { percent, transferred, total } = progress;
         const percentStr = `${Math.floor(percent * 100)}`;
+        expectedTotal = total;
         if (percentStr !== progressStr) {
           progressStr = percentStr;
           readline.cursorTo(process.stdout, 0);
           process.stdout.write(`  Downloading... ${percentStr}%`);
         }
-      });
-      stream.on('end', () => {
+      }
+    });
+    stream.on('end', () => {
+      if (report) {
         readline.cursorTo(process.stdout, 0);
         process.stdout.write(`  Downloading... 100%\n`);
-      })
+      }
+      finished = true;
+    });
+
+    try {
+      await stream;
+    } catch (err) {
+      // TODO more sensible handling of this. very likely
+      // originates in "download" mishandling the "length"
+      // property, which (for very large files like HD videos)
+      // might exceed the maximum number size. This doesn't
+      // mean the download failed!
+      logger.debug(`Exception thrown from stream; may be a RangeError for "length" format`);
+      if (!(err instanceof RangeError) || !finished) {
+        throw err;
+      }
     }
 
-    await stream;
+    return expectedTotal;
   }
 
   // handle backup / direct arguments.
@@ -128,13 +148,14 @@ async function downloadUrl(tag: string, url: string, opts: DownloadOpts, context
   }
 
   // write
+  let expectedTotal = -1;
   if (direct) {
     if (logger) logger.trace(`${tag}: downloading directly to ${filename}`);
-    await dl(filename);
+    expectedTotal = await dl(filename);
   } else {
     const temp = `${filename}.update.${labelText}`;
     if (logger) logger.trace(`${tag}: writing indirectly to ${temp}`);
-    await dl(temp);
+    expectedTotal = await dl(temp);
     if (logger) logger.trace(`${tag}: renaming ${temp} to ${filename}`);
     await fs.rename(temp, filename);
   }
@@ -146,6 +167,10 @@ async function downloadUrl(tag: string, url: string, opts: DownloadOpts, context
   }
 
   const stat = await fs.stat(filename);
+  if (logger) logger.trace(`${tag}: downloaded ${stat.size} bytes`);
+  if (`${expectedTotal}` !== '-1' && `${stat.size}` !== `${expectedTotal}`) {
+    if (logger) logger.warn(`${tag}: Downloaded file size does not match expectations. Verify that ${filename} works as expected.`);
+  }
   return { filename, size:stat.size, updated:true };
 }
 

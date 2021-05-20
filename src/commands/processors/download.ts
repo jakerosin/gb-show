@@ -702,6 +702,7 @@ export async function process(argv: string[], context: Context): Promise<number>
     }
 
     bytesSaved += size;
+    logger.trace(`Downloaded ${bytesSaved} so far`);
     if (megabyte_limit && megabyte_limit <= bytesSaved / (1024 * 1024)) {
       logger.print(`Saved ${(bytesSaved / (1024 * 1024)).toFixed(2)} megabytes; size limit reached`);
       limitReached = true;
@@ -742,6 +743,7 @@ export async function process(argv: string[], context: Context): Promise<number>
         }
 
         bytesSaved += size;
+        logger.trace(`Downloaded ${bytesSaved} so far`);
         if (megabyte_limit && megabyte_limit <= bytesSaved / (1024 * 1024)) {
           logger.print(`Saved ${(bytesSaved / (1024 * 1024)).toFixed(2)} megabytes; size limit reached`);
           limitReached = true;
@@ -765,7 +767,8 @@ function toFilename(out: string|void, fallback: string|void, opts:TemplateOpts):
 
 async function saveShow(show: VideoShow, options: any, context: Context): Promise<SaveResult[]> {
   const { logger } = context;
-  const { quality, replace } = options;
+  const { replace } = options;
+  const quality = options['quality'] || 'highest';
   const show_out = options['show-out'];
   const show_image_out = options['show-image-out'];
   const show_metadata_out = options['show-metadata-out'];
@@ -799,7 +802,8 @@ async function saveVideo(show: VideoShow|void, video: Video|void, episode: Catal
   }
 
   const { logger } = context;
-  const { out, quality, replace } = options;
+  const { out, replace } = options;
+  const quality = options['quality'] || 'highest';
   const video_out = options['video-out'];
   const data_out = options['metadata-out'];
   const image_out = options['image-out'];
