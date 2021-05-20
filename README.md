@@ -173,6 +173,7 @@ Template values, specified in curly braces (e.g. "{name}"), will be replaced wit
 | {season_name}    | The season's inferred; a year, or a game title    |
 | {season_number}    | The season's number, starting with 1    |
 | {season_count}    | The show's total number of seasons (so far)   |
+| {premium}    | "Free" or "Premium": the video's premium status  |
 | {quality}    | The file quality saved    |
 
 ## .env File

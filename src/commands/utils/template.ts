@@ -32,6 +32,7 @@ const templateAliases = {
   season_name: ['season_name', 'season_title'],
   season_number: ['season', 'season_number', 's'],
   season_count: ['season_count'],
+  premium: ['premium'],
   quality: ['quality', 'q']
 }
 
@@ -53,6 +54,7 @@ const templateDefault = {
   season_name: 'Specials',
   season_number: '00',
   season_count: '00',
+  premium: 'Unknown',
   quality: 'any'
 }
 
@@ -112,6 +114,7 @@ function unsafeValue(key: string, templateOpts: TemplateOpts): string|void {
     }
     if (key === 'guid') return `${video.guid}`;
     if (key === 'id') return `${video.id}`;
+    if (key === 'premium') return `${video.premium ? 'Premium' : 'Free'}`;
   }
 
   if (episode) {
