@@ -49,7 +49,6 @@ In most cases, rather than listing configuration as command-line options, the sa
 **API key is required, but it may be provided via `--api-key` or the `GBSHOW_TOKEN` env variable.**
 
 | Option          | Type   | Required | ENV variable             | Description  |
-
 | --------------- | ------ | -------- | ------------------------ | -------------------------------------------------------------------------------------------- |
 | --api-key, -k   | String | Y        | GBSHOW_TOKEN             | Your [Giant Bomb API key](https://www.giantbomb.com/api/)                                    |
 | --log-level, -l | String | N        | GBSHOW_LOG_LEVEL         | Minimum significance for display. [fatal, error, warn, info, debug, trace]. Default: "warn"  |
@@ -59,7 +58,6 @@ In most cases, rather than listing configuration as command-line options, the sa
 ### List Command Options
 
 | Option               | Type   | Required | ENV variable             | Description  |
-
 | -------------------- | ------ | -------- | ------------------------ | -------------------------------------------------------------------------------------------- |
 | [text], --show, -s   | String | N        |                          | Used to find a matching show -- title, episode name, game                                    |
 
@@ -68,7 +66,6 @@ e.g. `./gb-show list "Mario"`
 ### Examine Command Options
 
 | Option               | Type   | Required | ENV variable             | Description  |
-
 | -------------------- | ------ | -------- | ------------------------ | -------------------------------------------------------------------------------------------- |
 | [text], --show, -s   | String | Y        |                          | Used to find a matching show -- title, episode name, game                                    |
 | --season-type, -t    | String | N        | GBSHOW_SEASON_TYPE       | Field used to divide the show's seasons: [years, games]. Inferred from show by default.      |
@@ -81,7 +78,6 @@ e.g. `./gb-show list "Mario"`
 **Output template arguments `--out`, `--video-out`, etc. (those with "-out") are not required, but necessary for any files to be saved.**
 
 | Option               | Type   | Required | ENV variable             | Description  |
-
 | -------------------- | ------ | -------- | ------------------------ | -------------------------------------------------------------------------------------------- |
 | <text>, --show, -s   | String | Y*       |                          | Used to find a matching show -- title, episode name, game.                                   |
 | --video, -v          | String | Y*       |                          | Used to find a matching video -- title, episode name, game.                                  |
@@ -123,7 +119,6 @@ More complex ranges can be specified using anchors: the words [from, after, thro
 **At least one option is required.**
 
 | Option               | Type   | Required  | ENV variable             | Description  |
-
 | -------------------- | ------ | --------- | ------------------------ | -------------------------------------------------------------------------------------------- |
 | <text>               | String | Y*        |                          | Season/episode number formatted like S02, E17, or S02E17.                                    |
 | --video, -v          | String | Y*        |                          | Used to find a matching video -- title, episode name, game.                                  |
@@ -153,7 +148,6 @@ Template values, specified in curly braces (e.g. "{name}"), will be replaced wit
 ### Output Template Values
 
 | Key               | Description  |
-
 | ----------------- | --------------------------------------------- |
 | {name}            | The name of the video                         |
 | {game}            | The game featured in the video                |
