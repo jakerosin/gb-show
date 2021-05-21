@@ -25,7 +25,7 @@ import { Context } from '../utils/context';
 
 const readPromise = util.promisify(read);
 
-export const aliases = ['download', 'save', 'get'];
+export const aliases = ['download', 'save', 'get', 'd'];
 export const summary = 'Downloads GB videos and/or associated data.';
 
 export const parser = new Parser({

@@ -11,7 +11,7 @@ import { shows, VideoShowMatch } from '../utils/shows';
 // types
 import { Context } from '../utils/context';
 
-export const aliases = ['list', 'shows', 'find', 'search'];
+export const aliases = ['list', 'shows', 'find', 'search', 'l'];
 export const summary = 'Load and display GB show names';
 
 export const parser = new Parser({

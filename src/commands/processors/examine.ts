@@ -12,7 +12,7 @@ import { catalog } from '../utils/catalog';
 // types
 import { Context } from '../utils/context';
 
-export const aliases = ['examine', 'seasons', 'episodes'];
+export const aliases = ['examine', 'seasons', 'episodes', 'e'];
 export const summary = 'Load and display season information about the indicated show';
 
 export const parser = new Parser({
