@@ -111,7 +111,7 @@ export async function find(opts: VideoMatchOpts, context: Context): Promise<Vide
     }
     if (matches.length) {
       if (logger && matches.length > 1) {
-        logger.warn(`${tag}: ident ${ident} matches at least ${matches.length} ${matchType}s`);
+        logger.warn(`${tag}: ident ${ident} matches at least ${matches.length} ${matchType}s (some will be omitted)`);
         for (let i = 0; i < 5 && i < matches.length; i++) {
           logger.warn(`${tag}:   ${ matches[i].name}`)
         }
@@ -133,9 +133,9 @@ export async function find(opts: VideoMatchOpts, context: Context): Promise<Vide
       if (videosData.results && videosData.results.length) {
         const videos = videosData.results.filter(a => checkFilter(a, optsFilter));
         if (logger && videos.length > 1) {
-          logger.warn(`${tag}: ident ${ident} matches at least ${videos.length} ${matchType}s`);
+          logger.warn(`${tag}: ident ${ident} matches at least ${videos.length} ${matchType}s (some will be omitted)`);
           for (let i = 0; i < videos.length; i++) {
-            logger.warn(`${tag}:   ${videos[i].name}`)
+            logger.info(`${tag}:   ${videos[i].name}`)
           }
         }
         if (videos.length) return { video:videos[0], matchType };
@@ -214,7 +214,7 @@ export async function list(opts: VideoMatchOpts, context: Context): Promise<Vide
         if (!videoIDs.has(match.id)) {
           const video = await api.video.get(match.guid);
           videoIDs.add(video.id);
-          videos.push({ video, matchType:'id' });
+          videos.push({ video, matchType });
         }
       }
     }
@@ -222,21 +222,25 @@ export async function list(opts: VideoMatchOpts, context: Context): Promise<Vide
     // look for videos with this in their name or as an association
     for (const matchType of searchTypes) {
       const videosData = matchType === 'name'
-        ? await api.video.list({ filter:[...optsFilter, { field:'name', value:`${ident}` }], limit:5 })
-        : await api.video.search(`${ident}`, { limit:5 });
+        ? await api.video.list({
+          filter: [...optsFilter, { field:'name', value:`${ident}` }],
+          sort: { field:'publish_date', direction:'asc' },
+          limit: 30
+        })
+        : await api.video.search(`${ident}`, { limit:10 });
       if (videosData.results && videosData.results.length) {
         const matches = videosData.results.filter(a => checkFilter(a, optsFilter));
         if (logger && videosData.number_of_page_results < videosData.number_of_total_results) {
-          logger.warn(`${tag}: ident ${ident} matches at least ${videosData.number_of_total_results} ${matchType}s`);
+          logger.warn(`${tag}: ident ${ident} matches at least ${videosData.number_of_total_results} ${matchType}s (some will be omitted)`);
           for (let i = 0; i < matches.length; i++) {
-            logger.warn(`${tag}:   ${matches[i].name}`)
+            logger.info(`${tag}:   ${matches[i].name}`)
           }
         }
         for (const match of matches) {
           if (!videoIDs.has(match.id)) {
             const video = await api.video.get(match.guid);
             videoIDs.add(video.id);
-            videos.push({ video, matchType:'id' });
+            videos.push({ video, matchType });
           }
         }
       }

@@ -133,7 +133,7 @@ export async function find(opts: VideoShowMatchOpts, context: Context): Promise<
           logger.warn(`${tag}: ident ${ident} matches at least ${show_ids.length} shows, e.g.`);
           for (let i = 0; i < 5 && i < show_ids.length; i++) {
             const id = show_ids[i];
-            logger.warn(`${tag}:   ${titleForId[id]}`)
+            logger.info(`${tag}:   ${titleForId[id]}`)
           }
         } else if (videosData.number_of_page_results < videosData.number_of_total_results) {
           logger.warn(`${tag}: ident ${ident} matches ${videosData.number_of_total_results} ${matchType}s and may match multiple shows`)

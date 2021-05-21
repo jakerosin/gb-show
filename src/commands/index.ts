@@ -7,11 +7,12 @@ import { ERROR } from './utils/context';
 import * as download from './processors/download';
 import * as examine from './processors/examine';
 import * as list from './processors/list';
+import * as videos from './processors/videos';
 
 // types
 import { Context, Command } from './utils/context';
 
-const cmds: Command[] = [download, examine, list];
+const cmds: Command[] = [download, examine, list, videos];
 
 const process = async(command:string, argv: string[], context: Context): Promise<number> => {
   const { logger } = context;
@@ -42,6 +43,7 @@ export default {
   download,
   examine,
   list,
+  videos,
 
   // special commands
   // TODO
