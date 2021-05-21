@@ -26,13 +26,15 @@ Copy your API key from [Giant Bomb](https://www.giantbomb.com/api)
 
 ## Commands
 
-Four commands (plus aliases) are available:
+Five commands (plus aliases) are available:
 
 `help`: display detailed information about the tool and available options. Can also be combined with specific commands for detailed information, such as `./gb-show download help`.
 
 `list [show]` (alias `find [show]`): list the Giant Bomb shows available for download. If a search term is provided, looks for shows involving that query in a name, video, or game.
 
 `examine <show>` (alias `seasons <show>`): retrieves and lists the video content produced for the indicated show, attempting to organize that content into year- or game-based "seasons".
+
+`videos <video>`: retrieves and lists videos available for download, which match the provided search term.
 
 `download [options]` (alias `get [options]`): download a single video, a batch of episodes or seasons within a single show, or an entire show.
 
@@ -74,6 +76,15 @@ e.g. `./gb-show list "Mario"`
 | --free               |        | N        |                          | Only consider free (non-premium) shows                                                       |
 | --season-type, -t    | String | N        | GBSHOW_SEASON_TYPE       | Field used to divide the show's seasons: [years, games]. Inferred from show by default.      |
 | --details, -d        |        | N        |                          | Display extra information (episode titles)                                                   |
+
+### Video Command Options
+
+| Option               | Type   | Required | ENV variable             | Description  |
+| -------------------- | ------ | -------- | ------------------------ | -------------------------------------------------------------------------------------------- |
+| [text], --video, -v  | String | Y        |                          | Used to find a matching video -- title, game                                                 |
+| --premium            |        | N        |                          | Only consider premium videos                                                                 |
+| --free               |        | N        |                          | Only consider free (non-premium) videos                                                      |
+| --details, -d        |        | N        |                          | Display extra information (show titles)                                                   |
 
 ### Download Command Options
 
