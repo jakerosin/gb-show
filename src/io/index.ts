@@ -112,8 +112,12 @@ export async function write<T>(value: T, args: WriteObjectArgs<T>): Promise<void
     ? `${filename}.backup.${labelText}`
     : null;
   if (backupFilename) {
-    if (logger) logger.trace(`io.write: backing up ${filename} to ${backupFilename}`);
-    await fs.copyFile(filename, backupFilename);
+    try {
+      if (logger) logger.trace(`io.write: backing up ${filename} to ${backupFilename}`);
+      await fs.copyFile(filename, backupFilename);
+    } catch (err) {
+      if (logger) logger.error(`io.write: couldn't back up ${filename} before replacement: ${err.message}`);
+    }
   }
 
   // process
@@ -138,8 +142,12 @@ export async function write<T>(value: T, args: WriteObjectArgs<T>): Promise<void
 
   // clean up backup
   if (!backup && backupFilename) {
-    if (logger) logger.trace(`io.write: removing backup ${backupFilename}`);
-    await fs.unlink(backupFilename);
+    try {
+      if (logger) logger.trace(`io.write: removing backup ${backupFilename}`);
+      await fs.unlink(backupFilename);
+    } catch (err) {
+      if (logger) logger.error(`io.write: couldn't remove back up ${backupFilename} after replacement: ${err.message}`);
+    }
   }
 }
 

@@ -98,10 +98,10 @@ async function downloadUrl(tag: string, url: string, opts: DownloadOpts, context
     let expectedTotal = -1;
     stream.pipe(fsSync.createWriteStream(destination));
     stream.on('downloadProgress', progress => {
+      const { percent, transferred, total } = progress;
+      if (expectedTotal < 0) expectedTotal = total;
       if (report) {
-        const { percent, transferred, total } = progress;
         const percentStr = `${Math.floor(percent * 100)}`;
-        expectedTotal = total;
         if (percentStr !== progressStr) {
           progressStr = percentStr;
           readline.cursorTo(process.stdout, 0);
@@ -110,11 +110,11 @@ async function downloadUrl(tag: string, url: string, opts: DownloadOpts, context
       }
     });
     stream.on('end', () => {
+      finished = true;
       if (report) {
         readline.cursorTo(process.stdout, 0);
         process.stdout.write(`  Downloading... 100%\n`);
       }
-      finished = true;
     });
 
     try {
@@ -125,7 +125,7 @@ async function downloadUrl(tag: string, url: string, opts: DownloadOpts, context
       // property, which (for very large files like HD videos)
       // might exceed the maximum number size. This doesn't
       // mean the download failed!
-      logger.debug(`Exception thrown from stream; may be a RangeError for "length" format`);
+      if (logger) logger.debug(`Exception thrown from stream; may be a RangeError for "length" format`);
       if (!(err instanceof RangeError) || !finished) {
         throw err;
       }
@@ -143,8 +143,12 @@ async function downloadUrl(tag: string, url: string, opts: DownloadOpts, context
     ? `${filename}.backup.${labelText}`
     : null;
   if (backupFilename) {
-    if (logger) logger.trace(`${tag}: backing up ${filename} to ${backupFilename}`);
-    await fs.rename(filename, backupFilename);
+    try {
+      if (logger) logger.trace(`${tag}: backing up ${filename} to ${backupFilename}`);
+      await fs.rename(filename, backupFilename);
+    } catch (err) {
+      if (logger) logger.error(`${tag}: couldn't back up ${filename} before replacement: ${err.message}`);
+    }
   }
 
   // write
@@ -162,8 +166,12 @@ async function downloadUrl(tag: string, url: string, opts: DownloadOpts, context
 
   // clean up backup
   if (!backup && backupFilename) {
-    if (logger) logger.trace(`${tag}: removing backup ${backupFilename}`);
-    await fs.unlink(backupFilename);
+    try {
+      if (logger) logger.trace(`${tag}: removing backup ${backupFilename}`);
+      await fs.unlink(backupFilename);
+    } catch (err) {
+      if (logger) logger.error(`${tag}: couldn't remove back up ${backupFilename} after replacement: ${err.message}`);
+    }
   }
 
   const stat = await fs.stat(filename);
