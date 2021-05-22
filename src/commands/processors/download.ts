@@ -471,6 +471,7 @@ export async function process(argv: string[], context: Context): Promise<number>
       showCatalog: targetCatalog,
       seasonType: season_type || targetCatalog.preferredSeasons,
       anchorType: 'from',
+      episode,
       season
     }
     anchors.push(await anchor.find(anchorOpts, context));
