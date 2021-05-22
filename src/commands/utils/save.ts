@@ -46,9 +46,15 @@ function imageUrl(quality: SaveQuality, imageResult: ImageResult): URL|void {
       if (url && url.path) return url;
     }
   }
-  if (quality === 'hd') return { path:imageResult.screen_large_url, quality };
-  if (quality === 'high') return { path:imageResult.super_url, quality };
-  if (quality === 'low') return { path:imageResult.medium_url, quality };
+  const paths = [
+    imageResult.screen_large_url,
+    imageResult.super_url,
+    imageResult.medium_url,
+    imageResult.small_url
+  ];
+  if (quality === 'hd') return { path:paths.find(p => !!p), quality };
+  if (quality === 'high') return { path:paths.find(p => !!p), quality };
+  if (quality === 'low') return { path:paths.slice(1).find(p => !!p), quality };
 }
 
 function videoUrl(quality: SaveQuality, video: Video): URL|void {
