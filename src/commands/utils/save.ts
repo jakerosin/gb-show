@@ -12,8 +12,9 @@ import { ImageResult, Video, VideoShow } from '../../api';
 import { Context } from './context';
 import { template } from './template';
 
-export type SaveQuality = 'highest'|'hd'|'high'|'low';
+export type SaveQuality = 'highest'|'auto'|'hd'|'high'|'low';
 const qualities: SaveQuality[] = ['hd', 'high', 'low'];
+const autoQualities: SaveQuality[] = ['high', 'hd', 'low'];
 
 export interface SaveOpts extends WriteArgs {
   replace?: boolean|void;
@@ -46,6 +47,12 @@ function imageUrl(quality: SaveQuality, imageResult: ImageResult): URL|void {
       if (url && url.path) return url;
     }
   }
+  if (quality === 'auto') {
+    for (const q of autoQualities) {  // use "high" if possible, "hd" if not
+      const url = imageUrl(q, imageResult);
+      if (url && url.path) return url;
+    }
+  }
   const paths = [
     imageResult.screen_large_url,
     imageResult.super_url,
@@ -60,6 +67,12 @@ function imageUrl(quality: SaveQuality, imageResult: ImageResult): URL|void {
 function videoUrl(quality: SaveQuality, video: Video): URL|void {
   if (quality === 'highest') {
     for (const q of qualities) {
+      const url = videoUrl(q, video);
+      if (url && url.path) return url;
+    }
+  }
+  if (quality === 'auto') {
+    for (const q of autoQualities) {  // use "high" if possible, "hd" if not
       const url = videoUrl(q, video);
       if (url && url.path) return url;
     }

@@ -371,8 +371,8 @@ export async function process(argv: string[], context: Context): Promise<number>
     throw new Error(`--season-type <type> must be "games" or "years"`);
   }
 
-  if (quality !== void 0 && !["highest", "hd", "high", "low"].includes(quality)) {
-    throw new Error(`--quality <quality> must be "highest", "hd", "high", or "low"`);
+  if (quality !== void 0 && !["highest", "auto", "hd", "high", "low"].includes(quality)) {
+    throw new Error(`--quality <quality> must be "highest", "auto", "hd", "high", or "low"`);
   }
 
   if (file_limit && replace) {
@@ -616,7 +616,8 @@ export async function process(argv: string[], context: Context): Promise<number>
   logger.print();
 
   // print example filenames
-  const exampleQuality = quality === 'highest' ? 'hd' : quality;
+  const exampleQuality = quality === 'highest' ? 'hd'
+    : quality === 'auto' ? 'high' : quality;
   const exTemplateOpts: TemplateOpts = { show:targetShow, video:targetVideo, episode:firstIncluded };
   const baseFilenameExample = toFilename(out, null, exTemplateOpts);
   const videoFilenameExample = toFilename(video_out, baseFilenameExample, { ...exTemplateOpts, quality:exampleQuality, finalize:true });

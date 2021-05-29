@@ -103,7 +103,7 @@ e.g. `./gb-show list "Mario"`
 | [from, after, through, to] | * | N       |                          | Specify a range of episodes to download (may be combined with other ranges)                  |
 | --season-type, -t    | String | N        | GBSHOW_SEASON_TYPE       | Field used to divide the show's seasons: ["years", "games"]. Show-specific by default.       |
 | --details, -d        |        | N        |                          | Display extra information (episodes NOT included in batch)                                   |
-| --quality, -q        | String | N        | GBSHOW_QUALITY           | Video/image quality to download: [highest, hd, high, low]. Default: highest                  |
+| --quality, -q        | String | N        | GBSHOW_QUALITY           | Video/image quality to download: [highest, auto, hd, high, low]. Default: highest                  |
 | --show-only,         |        | N        |                          | Ignore videos; only save information related to the show itself                              |
 | --out, -o            | String | N*       | GBSHOW_OUT               | File output template; populated by video and show details. "none" for no output.             |
 | --video-out, -V      | String | N*       | GBSHOW_VIDEO_OUT         | Video file output template; populated by video and show details. Default is `--out` value. "none" for no output.  |

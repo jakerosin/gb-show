@@ -48,7 +48,7 @@ export default {
   },
   quality: {
     name: 'quality', alias: 'q', type: String, defaultValue: DEFAULT.quality,
-    description: "File quality: one of ['highest', 'hd', 'high', 'low']. If omitted, 'highest' is used."
+    description: "File quality: one of ['highest', 'auto', 'hd', 'high', 'low']. If omitted, 'highest' is used."
   },
   out: {
     name: 'out', alias: 'o', type: String, defaultValue: DEFAULT.out,
