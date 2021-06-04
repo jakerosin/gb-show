@@ -19,6 +19,7 @@ const templateAliases = {
   game: ['game', 'association'],
   time: ['time', 'publish_time', 'publication_time'],
   date: ['date', 'publish_date', 'publication_date'],
+  date_text: ['date_text'],
   year: ['year', 'publish_year', 'publication_year'],
   episode: ['number', 'season_episode', 'season_episode_number', 'episode_number', 'season_video', 'season_video_number', 'video_number', 'episode', 'ep', 'e'],
   show_episode_number: ['show_episode_number', 'show_video_number', 'show_episode', 'show_video'],
@@ -107,6 +108,11 @@ function unsafeValue(key: string, templateOpts: TemplateOpts): string|void {
     if (key === 'date') {
       const date = new Date(`${video.publish_date}Z`);
       return date.toISOString().replace(/T/, ' ').replace(/\..+/, '').split(' ')[0];
+    }
+    if (key ===  'date_text') {
+      const date = new Date(`${video.publish_date}Z`);
+      const month = date.toLocaleString('default', { month: 'short' });
+      return `${month}. ${date.getDate()}, ${date.getFullYear()}`;
     }
     if (key === 'year') {
       const date = new Date(`${video.publish_date}Z`);

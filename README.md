@@ -170,6 +170,7 @@ Template values, specified in curly braces (e.g. "{name}"), will be replaced wit
 | {game}            | The game featured in the video                |
 | {time}            | The video's publication date and time         |
 | {date}            | The video's publication date                  |
+| {date_text}       | The video's publication date, with month written |
 | {year}            | The video's publication year                  |
 | {episode}         | The video's episode number within the season  |
 | {show_episode}    | The video's episode number within the show    |
